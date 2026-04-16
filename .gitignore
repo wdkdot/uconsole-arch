@@ -29,6 +29,7 @@ out/
 # Arch package build artifacts
 pkg/
 src/
+pkgs/linux-uconsole-cm5-git/kernel/
 *.pkg.tar.*
 *.src.tar.*
 *.db

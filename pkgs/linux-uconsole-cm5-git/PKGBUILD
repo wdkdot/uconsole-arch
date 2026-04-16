@@ -1,6 +1,6 @@
 pkgbase=linux-uconsole-cm5-git
 pkgname=("${pkgbase}")
-pkgver=0
+pkgver=r1328974.6fca6f3b870d
 pkgrel=1
 pkgdesc="Linux kernel for ClockworkPi uConsole with Raspberry Pi CM5"
 arch=('aarch64')
@@ -24,7 +24,8 @@ pkgver() {
 
 prepare() {
   cd "${srcdir}/kernel"
-  make ARCH=arm64 bcm2712_defconfig
+  make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- bcm2712_defconfig
+  make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- olddefconfig
 }
 
 build() {
