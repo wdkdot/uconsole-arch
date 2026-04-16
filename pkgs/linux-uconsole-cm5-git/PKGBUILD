@@ -1,0 +1,70 @@
+pkgbase=linux-uconsole-cm5-git
+pkgname=("${pkgbase}")
+pkgver=0
+pkgrel=1
+pkgdesc="Linux kernel for ClockworkPi uConsole with Raspberry Pi CM5"
+arch=('aarch64')
+url="https://github.com/ak-rex/ClockworkPi-linux"
+license=('GPL-2.0-only')
+depends=('coreutils' 'kmod' 'mkinitcpio')
+makedepends=('git' 'bc' 'bison' 'flex' 'openssl' 'elfutils' 'pahole' 'cpio' 'perl' 'tar' 'xz')
+options=('!strip')
+
+source=(
+  "kernel::git+https://github.com/ak-rex/ClockworkPi-linux.git"
+)
+sha256sums=(
+  'SKIP'
+)
+
+pkgver() {
+  cd "${srcdir}/kernel"
+  printf "r%s.%s" "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+}
+
+prepare() {
+  cd "${srcdir}/kernel"
+  make ARCH=arm64 bcm2712_defconfig
+}
+
+build() {
+  cd "${srcdir}/kernel"
+
+  make ARCH=arm64 \
+       CROSS_COMPILE=aarch64-linux-gnu- \
+       -j"$(nproc)" \
+       Image.gz modules dtbs
+}
+
+package() {
+  cd "${srcdir}/kernel"
+
+  install -Dm644 "arch/arm64/boot/Image.gz" \
+    "${pkgdir}/boot/vmlinuz-${pkgbase}"
+
+  make ARCH=arm64 \
+       CROSS_COMPILE=aarch64-linux-gnu- \
+       INSTALL_MOD_PATH="${pkgdir}/usr" \
+       modules_install
+
+  install -d "${pkgdir}/boot"
+  cp -a arch/arm64/boot/dts/broadcom/*.dtb "${pkgdir}/boot/"
+
+  if [ -d arch/arm64/boot/dts/overlays ]; then
+    install -d "${pkgdir}/boot/overlays"
+    cp -a arch/arm64/boot/dts/overlays/*.dtbo "${pkgdir}/boot/overlays/"
+    [ -f arch/arm64/boot/dts/overlays/README ] && \
+      install -Dm644 arch/arm64/boot/dts/overlays/README \
+        "${pkgdir}/boot/overlays/README"
+  fi
+
+  install -d "${pkgdir}/etc/mkinitcpio.d"
+  cat > "${pkgdir}/etc/mkinitcpio.d/${pkgbase}.preset" << EOF
+ALL_config="/etc/mkinitcpio.conf"
+ALL_kver="/boot/vmlinuz-${pkgbase}"
+
+PRESETS=('default')
+
+default_image="/boot/initramfs-${pkgbase}.img"
+EOF
+}

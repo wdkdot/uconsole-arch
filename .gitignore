@@ -1,0 +1,50 @@
+# macOS / Windows metadata
+.DS_Store
+Thumbs.db
+
+# Editor settings and swap files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Generic logs and temporary files
+*.log
+*.tmp
+*.bak
+.cache/
+.tmp/
+tmp/
+
+# Build outputs
+build/
+dist/
+out/
+
+# Arch package build artifacts
+pkg/
+src/
+*.pkg.tar.*
+*.src.tar.*
+*.db
+*.db.tar.*
+*.files
+*.files.tar.*
+
+# Local package repository outputs
+repo/*.db
+repo/*.db.tar.*
+repo/*.files
+repo/*.files.tar.*
+repo/*.pkg.tar.*
+
+# Local environment files
+.env
+.env.*
+
+.codex
