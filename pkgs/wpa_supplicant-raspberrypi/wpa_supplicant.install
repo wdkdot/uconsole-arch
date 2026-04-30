@@ -1,0 +1,21 @@
+post_install() {
+  cat <<EOF
+
+wpa_supplicant-raspberrypi installed.
+
+This package replaces the stock wpa_supplicant package
+with a Raspberry Pi / Broadcom brcmfmac workaround build.
+
+If Wi-Fi still fails, check:
+  journalctl -u NetworkManager -b
+  journalctl -b | grep -Ei 'wpa|brcm|brcmfmac|cfg80211'
+
+Optional kernel workaround:
+  brcmfmac.feature_disable=0x82000
+
+EOF
+}
+
+post_upgrade() {
+  post_install
+}

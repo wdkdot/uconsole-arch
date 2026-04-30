@@ -1,0 +1,87 @@
+# Maintainer: wdkdot <wdk@wdk.kr>
+
+pkgname=wpa_supplicant-raspberrypi
+_pkgname=wpa_supplicant
+pkgver=2.11
+pkgrel=6
+epoch=2
+pkgdesc="wpa_supplicant with Raspberry Pi/Broadcom brcmfmac workaround"
+url="https://w1.fi/wpa_supplicant/"
+arch=('aarch64')
+license=('BSD-3-Clause')
+
+provides=('wpa_supplicant')
+conflicts=('wpa_supplicant')
+
+depends=(
+  glibc
+  libdbus
+  libnl
+  openssl
+  pcsclite
+  readline
+)
+
+makedepends=(
+  docbook-sgml
+  docbook-utils
+  git
+  perl-sgmls
+)
+
+install=wpa_supplicant.install
+
+source=(
+  # "git+https://w1.fi/hostap.git?signed#tag=hostap_${pkgver//./_}"
+  "git+https://w1.fi/hostap.git#tag=hostap_${pkgver//./_}"
+  "0001-Revert-Mark-authorization-completed-on-driver-indica.patch"
+  "wpa_supplicant_config::https://raw.githubusercontent.com/archlinux/svntogit-packages/master/wpa_supplicant/trunk/wpa_supplicant_config"
+)
+
+
+sha256sums=(
+  'SKIP'
+  'SKIP'
+  'SKIP'
+)
+
+validpgpkeys=(
+  # todo: add upstream maintainer's key
+)
+
+prepare() {
+  cd hostap
+
+  # Raspberry Pi / Broadcom workaround patch
+  patch -Np1 -i "$srcdir/0001-Revert-Mark-authorization-completed-on-driver-indica.patch"
+
+  cd wpa_supplicant
+
+  cp defconfig .config
+
+  cp "$srcdir/wpa_supplicant_config" .config
+
+  echo 'CFLAGS += -Wno-error=discarded-qualifiers' >> .config
+}
+
+build() {
+  cd hostap/wpa_supplicant
+
+  make
+  make eapol_test
+}
+
+package() {
+  cd hostap/wpa_supplicant
+
+  install -Dm755 wpa_supplicant "$pkgdir/usr/bin/wpa_supplicant"
+  install -Dm755 wpa_cli "$pkgdir/usr/bin/wpa_cli"
+  install -Dm755 wpa_passphrase "$pkgdir/usr/bin/wpa_passphrase"
+  install -Dm755 eapol_test "$pkgdir/usr/bin/eapol_test"
+
+  install -Dm644 wpa_supplicant.conf \
+    "$pkgdir/usr/share/doc/wpa_supplicant/wpa_supplicant.conf"
+
+  install -Dm644 ../COPYING \
+    "$pkgdir/usr/share/licenses/wpa_supplicant/LICENSE"
+}
