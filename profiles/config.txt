@@ -1,0 +1,38 @@
+# Basic Raspberry Pi / CM5 boot settings
+arm_64bit=1
+disable_overscan=1
+
+[pi5]
+# ClockworkPi uConsole CM5 hardware overlay
+dtoverlay=clockworkpi-uconsole-cm5
+
+# Pi 5 / CM5 KMS display driver
+dtoverlay=vc4-kms-v3d-pi5,cma-384
+
+# uConsole CM5: avoid PCIe-related conflicts unless explicitly using PCIe/NVMe
+dtparam=pciex1=off
+
+# On CM5 this is usually unnecessary
+enable_uart=0
+
+[all]
+# Kernel
+kernel=vmlinuz-linux-uconsole-cm5-git
+initramfs initramfs-linux-uconsole-cm5-git.img followkernel
+
+# USB host mode for uConsole internal/external USB path
+dtoverlay=dwc2,dr_mode=host
+
+# Use external antenna on Raspberry Pi CM5 U.FL connector
+dtparam=ant2
+
+# USB port current limit increase
+usb_max_current_enable=1
+
+# Optional audio mappings, useful later
+dtparam=audio=on
+dtoverlay=audremap-pi5,pins_12_13
+
+# Speaker
+# gpio=11=op,dh
+# gpio=10=ip,np
