@@ -3,7 +3,7 @@
 pkgname=wpa_supplicant-raspberrypi
 _pkgname=wpa_supplicant
 pkgver=2.11
-pkgrel=6
+pkgrel=7
 epoch=2
 pkgdesc="wpa_supplicant with Raspberry Pi/Broadcom brcmfmac workaround"
 url="https://w1.fi/wpa_supplicant/"
@@ -32,14 +32,25 @@ makedepends=(
 install=wpa_supplicant.install
 
 source=(
-  # "git+https://w1.fi/hostap.git?signed#tag=hostap_${pkgver//./_}"
   "git+https://w1.fi/hostap.git#tag=hostap_${pkgver//./_}"
   "0001-Revert-Mark-authorization-completed-on-driver-indica.patch"
   "wpa_supplicant_config::https://raw.githubusercontent.com/archlinux/svntogit-packages/master/wpa_supplicant/trunk/wpa_supplicant_config"
+
+  "wpa_supplicant.service"
+  "wpa_supplicant@.service"
+  "wpa_supplicant-nl80211@.service"
+  "wpa_supplicant-wired@.service"
+  "dbus-wpa_supplicant.conf"
+  "fi.w1.wpa_supplicant1.service"
 )
 
-
 sha256sums=(
+  'SKIP'
+  'SKIP'
+  'SKIP'
+  'SKIP'
+  'SKIP'
+  'SKIP'
   'SKIP'
   'SKIP'
   'SKIP'
@@ -84,4 +95,26 @@ package() {
 
   install -Dm644 ../COPYING \
     "$pkgdir/usr/share/licenses/wpa_supplicant/LICENSE"
+
+  # D-Bus files required by NetworkManager
+  install -Dm644 "$srcdir/dbus-wpa_supplicant.conf" \
+    "$pkgdir/usr/share/dbus-1/system.d/wpa_supplicant.conf"
+
+  install -Dm644 "$srcdir/fi.w1.wpa_supplicant1.service" \
+    "$pkgdir/usr/share/dbus-1/system-services/fi.w1.wpa_supplicant1.service"
+
+  # systemd unit files
+  install -Dm644 "$srcdir/wpa_supplicant.service" \
+    "$pkgdir/usr/lib/systemd/system/wpa_supplicant.service"
+
+  install -Dm644 "$srcdir/wpa_supplicant@.service" \
+    "$pkgdir/usr/lib/systemd/system/wpa_supplicant@.service"
+
+  install -Dm644 "$srcdir/wpa_supplicant-nl80211@.service" \
+    "$pkgdir/usr/lib/systemd/system/wpa_supplicant-nl80211@.service"
+
+  install -Dm644 "$srcdir/wpa_supplicant-wired@.service" \
+    "$pkgdir/usr/lib/systemd/system/wpa_supplicant-wired@.service"
+
+  install -dm755 "$pkgdir/etc/wpa_supplicant"
 }
