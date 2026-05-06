@@ -47,4 +47,6 @@ The files in this repository prioritize device bring-up and packaging informatio
 
 ## License
 
-TBD
+This repository is licensed under the MIT License, unless otherwise noted.
+
+Packaged upstream projects retain their original licenses.
