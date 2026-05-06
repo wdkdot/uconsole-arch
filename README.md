@@ -1,38 +1,35 @@
 # uconsole-arch
 
+[English](README.md) | [한국어](README.ko.md)
+
 Arch Linux ARM for ClockworkPi uConsole with Raspberry Pi CM5.
 
-`uconsole-arch` is a repository for building and organizing the base Arch Linux ARM environment for the ClockworkPi uConsole on Raspberry Pi CM5.
+`uconsole-arch` collects the base configuration and package build files for running Arch Linux ARM on the ClockworkPi uConsole.
 
-The goal of this project is to provide a clean and maintainable foundation for booting Arch Linux ARM on the uConsole, with package-based handling of the kernel, boot-related files, and hardware support components.
+It focuses on managing the kernel, boot configuration, and Raspberry Pi / Broadcom wireless compatibility package in a reproducible Arch Linux ARM environment.
 
 This project is developed with reference to existing community work around uConsole, including packaging and integration ideas shared by PeterCxy and the underlying hardware enablement work from Rex and others.
 
-## Goals
+## Contents
 
-- Boot Arch Linux ARM on ClockworkPi uConsole with Raspberry Pi CM5
-- Package the required kernel and related files in a maintainable Arch-style form
-- Organize uConsole-specific hardware support as reusable packages
-- Keep the base system clean and easy to build on top of
+- `linux-uconsole-cm5-git`: kernel package for ClockworkPi uConsole CM5
+- `wpa_supplicant-raspberrypi`: `wpa_supplicant` package for Raspberry Pi / Broadcom brcmfmac environments
+- `profiles/`: example boot configuration files for Raspberry Pi CM5 and uConsole
+- `docs/`: installation, boot, and package documentation
 
 ## Scope
 
-This repository focuses on the base system layer:
+This repository focuses on the base system layer required to boot Arch Linux ARM on the uConsole.
 
 - kernel packaging
 - boot configuration examples
 - device tree / overlay handling
 - network compatibility packages
-- optional hardware helper packages for uConsole-specific features
 
-Desktop environments, window managers, and personal user interface presets are intended to live separately from this repository.
+Desktop environments, window managers, and personal UI presets are not included.
 
-## Planned Packages
+## Planned Items
 
-The package list may change over time, but the initial structure is planned around components like:
-
-- `linux-uconsole-cm5-git`
-- `wpa_supplicant-raspberrypi-git`
 - `uconsole-4g-utils`
 - `uconsole-audio-switch`
 
@@ -42,12 +39,11 @@ The package list may change over time, but the initial structure is planned arou
 docs/       Documentation
 pkgs/       PKGBUILDs and related package files
 profiles/   Example boot configuration files
-scripts/    Build and repository helper scripts
 ```
 
 ## Notes
 
-This repository is intended to be a clean base for uConsole Arch Linux ARM work. Higher-level desktop or UI-specific configurations can be developed in separate repositories on top of this foundation.
+The files in this repository prioritize device bring-up and packaging information over personal desktop configuration. Environment-specific settings are intended to be added separately on top of this base.
 
 ## License
 
