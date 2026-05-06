@@ -7,7 +7,7 @@
 pkgname=wpa_supplicant-raspberrypi
 _pkgname=wpa_supplicant
 pkgver=2.11
-pkgrel=7
+pkgrel=8
 epoch=2
 pkgdesc='A utility providing key negotiation for WPA wireless networks with a Raspberry Pi/Broadcom brcmfmac workaround'
 url='https://w1.fi/wpa_supplicant/'
