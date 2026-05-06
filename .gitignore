@@ -26,6 +26,9 @@ build/
 dist/
 out/
 
+# makepkg VCS source caches
+pkgs/*/hostap/
+
 # Arch package build artifacts
 pkg/
 src/
