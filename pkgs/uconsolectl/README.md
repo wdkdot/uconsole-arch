@@ -9,7 +9,7 @@ Implemented commands:
 - `uconsolectl 4g on`
 - `uconsolectl 4g off`
 - `uconsolectl 4g reset`
-- `uconsolectl 4g status [--json]`
+- `uconsolectl 4g status [--detail] [--json]`
 - `uconsolectl battery [--json]`
 - `uconsolectl battery raw`
 - `uconsolectl status [--json]`
@@ -51,10 +51,12 @@ Default values:
 
 ```ini
 [4g]
-power_gpio=19
-reset_gpio=14
+power_gpio=24
+reset_gpio=15
 modem_index=auto
-scan_timeout_sec=10
+scan_timeout_sec=90
+power_off_timeout_sec=90
+power_check_delay_sec=15
 
 [battery]
 uevent_path=/sys/class/power_supply/axp20x-battery/uevent
@@ -65,12 +67,15 @@ uevent_path=/sys/class/power_supply/axp20x-battery/uevent
 ## 4G Notes
 
 `4g on/off/reset` typically need root privileges because GPIO and modem control may require elevated permissions.
+`4g on` waits `power_check_delay_sec`, then polls until ModemManager detects the modem or `scan_timeout_sec` expires.
+`4g off` disables the modem when possible, pulses the power GPIO low-high-low, waits `power_check_delay_sec`, then polls until the modem disappears or `power_off_timeout_sec` expires.
 
 Examples:
 
 ```bash
 sudo uconsolectl 4g on
 uconsolectl 4g status
+uconsolectl 4g status --detail
 sudo uconsolectl 4g off
 ```
 
@@ -82,6 +87,18 @@ Battery status reads a single uevent file and parses key values.
 uconsolectl battery
 uconsolectl battery raw
 uconsolectl status
+```
+
+## Measuring 4G Power Timing
+
+The helper script below powers the modem off and on, then measures when
+ModemManager reports the modem as gone or detected again.
+
+```bash
+sudo ./measure-4g-power-time --cycles 3
+sudo ./measure-4g-power-time --mode off
+sudo ./measure-4g-power-time --mode on
+sudo ./measure-4g-power-time --cycles 3 --json
 ```
 
 ## Dependencies
