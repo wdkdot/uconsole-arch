@@ -1,0 +1,31 @@
+# Maintainer: wdkdot <me@wdk.kr>
+
+pkgname=uconsolectl
+pkgver=0.1.0
+pkgrel=1
+pkgdesc='Lightweight CLI for uConsole CM5 4G and battery controls'
+arch=(aarch64)
+url='https://github.com/greenbean/uconsole-arch'
+license=(MIT)
+depends=(
+  python
+  modemmanager
+)
+optdepends=(
+  'networkmanager: connection status integration'
+  'raspberrypi-utils: pinctrl command for GPIO control'
+)
+backup=('etc/uconsolectl/uconsolectl.conf')
+source=(
+  'uconsolectl'
+  'uconsolectl.conf'
+)
+b2sums=(
+  '9453eae4d69db3b1d7936398cf8526b66c3dc62d3c4240f92f020d5fa46e0cc7f944d0f5f3feda1701fc33b437b4ad4bef36f13f46e1771c192b72575fd6ca5b'
+  'b6eea15dad5218fd49dd16d27470eaaced75144c7dace234b8b038485829436088ad2580551f77634f77a2020afac590724bdc44e7c54d63c6653a94a9b73118'
+)
+
+package() {
+  install -Dm755 "${srcdir}/uconsolectl" "${pkgdir}/usr/bin/uconsolectl"
+  install -Dm644 "${srcdir}/uconsolectl.conf" "${pkgdir}/etc/uconsolectl/uconsolectl.conf"
+}

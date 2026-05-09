@@ -1,0 +1,587 @@
+#!/usr/bin/env python3
+
+import argparse
+import configparser
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import time
+from typing import Dict, Optional, Tuple
+
+
+DEFAULT_CONFIG = {
+    "4g": {
+        "power_gpio": "19",
+        "reset_gpio": "14",
+        "modem_index": "auto",
+        "scan_timeout_sec": "10",
+    },
+    "battery": {
+        "uevent_path": "/sys/class/power_supply/axp20x-battery/uevent",
+    },
+}
+
+DEFAULT_CONFIG_PATH = "/etc/uconsolectl/uconsolectl.conf"
+
+
+class UserVisibleError(Exception):
+    def __init__(self, message: str, code: int = 1):
+        super().__init__(message)
+        self.code = code
+
+
+def load_config() -> configparser.ConfigParser:
+    conf = configparser.ConfigParser()
+    conf.read_dict(DEFAULT_CONFIG)
+
+    config_path = os.environ.get("UCONSOLECTL_CONFIG", DEFAULT_CONFIG_PATH)
+    if os.path.exists(config_path):
+        conf.read(config_path)
+
+    return conf
+
+
+def ensure_cmd(command: str, hint: str) -> None:
+    if shutil.which(command) is None:
+        raise UserVisibleError(
+            f"{command} command not found. {hint}",
+            code=1,
+        )
+
+
+def run_command(argv, check: bool = True) -> subprocess.CompletedProcess:
+    try:
+        return subprocess.run(argv, check=check, text=True, capture_output=True)
+    except FileNotFoundError:
+        raise UserVisibleError(
+            f"{argv[0]} command not found.",
+            code=1,
+        )
+    except PermissionError:
+        raise UserVisibleError(
+            "permission denied while running system command. Try running with sudo.",
+            code=1,
+        )
+    except subprocess.CalledProcessError as exc:
+        stderr = (exc.stderr or "").strip()
+        stdout = (exc.stdout or "").strip()
+        details = stderr or stdout or "command failed"
+        raise UserVisibleError(details, code=1)
+
+
+def bool_from_uevent(value: Optional[str]) -> Optional[bool]:
+    if value is None:
+        return None
+    lowered = value.strip().lower()
+    if lowered in {"1", "y", "yes", "true", "on"}:
+        return True
+    if lowered in {"0", "n", "no", "false", "off"}:
+        return False
+    return None
+
+
+def format_bool(value: Optional[bool]) -> str:
+    if value is True:
+        return "yes"
+    if value is False:
+        return "no"
+    return "unknown"
+
+
+def format_float(value: Optional[float], precision: int = 2) -> str:
+    if value is None:
+        return "unknown"
+    return f"{value:.{precision}f}"
+
+
+def parse_uevent_lines(text: str) -> Dict[str, str]:
+    result: Dict[str, str] = {}
+    for line in text.splitlines():
+        if "=" not in line:
+            continue
+        k, v = line.split("=", 1)
+        result[k.strip()] = v.strip()
+    return result
+
+
+def read_battery_uevent(path: str) -> Tuple[str, Dict[str, str]]:
+    try:
+        with open(path, "r", encoding="utf-8") as fp:
+            raw = fp.read()
+    except FileNotFoundError:
+        raise UserVisibleError(f"Battery uevent file not found: {path}", code=1)
+    except PermissionError:
+        raise UserVisibleError(
+            "permission denied while reading battery status.",
+            code=1,
+        )
+
+    return raw, parse_uevent_lines(raw)
+
+
+def to_int(value: Optional[str]) -> Optional[int]:
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except ValueError:
+        return None
+
+
+def build_battery_status(uevent: Dict[str, str]) -> Dict[str, object]:
+    status = uevent.get("POWER_SUPPLY_STATUS", "unknown")
+    capacity = to_int(uevent.get("POWER_SUPPLY_CAPACITY"))
+
+    voltage_uv = to_int(uevent.get("POWER_SUPPLY_VOLTAGE_NOW"))
+    current_ua = to_int(uevent.get("POWER_SUPPLY_CURRENT_NOW"))
+
+    voltage_v = (voltage_uv / 1_000_000.0) if voltage_uv is not None else None
+    current_a = (current_ua / 1_000_000.0) if current_ua is not None else None
+
+    power_w = None
+    if voltage_v is not None and current_a is not None:
+        power_w = abs(voltage_v * current_a)
+
+    return {
+        "status": status.lower(),
+        "capacity_percent": capacity,
+        "voltage_v": round(voltage_v, 3) if voltage_v is not None else None,
+        "current_a": round(current_a, 3) if current_a is not None else None,
+        "power_w": round(power_w, 3) if power_w is not None else None,
+        "health": uevent.get("POWER_SUPPLY_HEALTH", "unknown"),
+        "present": bool_from_uevent(uevent.get("POWER_SUPPLY_PRESENT")),
+        "online": bool_from_uevent(uevent.get("POWER_SUPPLY_ONLINE")),
+    }
+
+
+def print_battery_human(status: Dict[str, object]) -> None:
+    print("Battery")
+    print("")
+    print(f"Status:       {status['status']}")
+    cap = status["capacity_percent"]
+    print(f"Capacity:     {cap}%" if cap is not None else "Capacity:     unknown")
+    print(f"Voltage:      {format_float(status['voltage_v'], 2)} V")
+    print(f"Current:      {format_float(status['current_a'], 2)} A")
+    print(f"Power:        {format_float(status['power_w'], 2)} W")
+    print(f"Health:       {status['health']}")
+    print(f"Present:      {format_bool(status['present'])}")
+    print(f"Online:       {format_bool(status['online'])}")
+
+
+def get_gpio_level(gpio: int) -> str:
+    if shutil.which("pinctrl") is None:
+        return "unknown"
+
+    proc = subprocess.run(
+        ["pinctrl", "get", str(gpio)],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    text = (proc.stdout or "") + "\n" + (proc.stderr or "")
+    lowered = text.lower()
+
+    if re.search(r"\b(hi|dh)\b", lowered) or " level=1" in lowered:
+        return "on"
+    if re.search(r"\b(lo|dl)\b", lowered) or " level=0" in lowered:
+        return "off"
+    return "unknown"
+
+
+def parse_mmcli_modem_list(text: str):
+    modems = []
+    for line in text.splitlines():
+        m = re.search(r"(/org/freedesktop/ModemManager1/Modem/(\d+))", line)
+        if m:
+            modems.append({"path": m.group(1), "index": m.group(2)})
+    return modems
+
+
+def select_modem_index(conf: configparser.ConfigParser):
+    if shutil.which("mmcli") is None:
+        return None
+
+    modem_setting = conf.get("4g", "modem_index", fallback="auto").strip().lower()
+
+    proc = run_command(["mmcli", "-L"], check=False)
+    listing = (proc.stdout or "") + "\n" + (proc.stderr or "")
+    modems = parse_mmcli_modem_list(listing)
+
+    if not modems:
+        return None
+
+    if modem_setting != "auto":
+        for modem in modems:
+            if modem["index"] == modem_setting:
+                return modem
+        return {"path": f"/org/freedesktop/ModemManager1/Modem/{modem_setting}", "index": modem_setting}
+
+    return modems[0]
+
+
+def parse_mmcli_modem_detail(text: str) -> Dict[str, object]:
+    def first(pattern: str, default: str = "unknown") -> str:
+        m = re.search(pattern, text, re.IGNORECASE | re.MULTILINE)
+        if m:
+            return m.group(1).strip()
+        return default
+
+    signal_raw = first(r"signal\s+quality\s*:\s*(\d+)%", default="")
+    signal_percent = int(signal_raw) if signal_raw.isdigit() else None
+
+    sim = first(r"\bsim\s*:\s*(.+)$")
+    sim_path = sim if sim.startswith("/org/freedesktop/ModemManager1/SIM/") else None
+
+    return {
+        "manufacturer": first(r"manufacturer\s*:\s*(.+)$"),
+        "model": first(r"model\s*:\s*(.+)$"),
+        "state": first(r"state\s*:\s*(.+)$"),
+        "sim": "present" if sim_path is not None else sim,
+        "sim_path": sim_path,
+        "access": first(r"access\s+tech(?:nology)?\s*:\s*(.+)$").lower(),
+        "operator": first(r"operator\s+name\s*:\s*(.+)$"),
+        "signal_percent": signal_percent,
+        "primary_port": first(r"primary\s+port\s*:\s*(.+)$"),
+        "ports": first(r"\bports\s*:\s*(.+)$"),
+    }
+
+
+def enrich_sim_status(modem_detail: Dict[str, object]) -> None:
+    sim_path = modem_detail.get("sim_path")
+    if not isinstance(sim_path, str):
+        return
+
+    m = re.search(r"/SIM/(\d+)$", sim_path)
+    if not m:
+        return
+
+    proc = run_command(["mmcli", "-i", m.group(1)], check=False)
+    text = (proc.stdout or "") + "\n" + (proc.stderr or "")
+    lowered = text.lower()
+
+    if "error:" in lowered:
+        return
+    if re.search(r"\bactive\s*:\s*yes\b", lowered):
+        modem_detail["sim"] = "ready"
+    elif text.strip():
+        modem_detail["sim"] = "present"
+
+
+def get_connection_summary() -> Dict[str, object]:
+    if shutil.which("nmcli") is None:
+        return {"connected": False, "interface": "unknown"}
+
+    proc = subprocess.run(
+        ["nmcli", "-t", "-f", "DEVICE,TYPE,STATE", "device", "status"],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    for line in (proc.stdout or "").splitlines():
+        parts = line.split(":")
+        if len(parts) < 3:
+            continue
+        dev, dtype, state = parts[0], parts[1].lower(), parts[2].lower()
+        if dtype in {"gsm", "wwan", "modem"} and state == "connected":
+            return {"connected": True, "interface": dev}
+
+    return {"connected": False, "interface": "unknown"}
+
+
+def get_4g_status(conf: configparser.ConfigParser) -> Dict[str, object]:
+    power_gpio = conf.getint("4g", "power_gpio")
+    power_state = get_gpio_level(power_gpio)
+
+    modem = select_modem_index(conf)
+    if modem is None:
+        return {
+            "power": power_state,
+            "detected": False,
+            "modem": {
+                "path": None,
+                "manufacturer": "unknown",
+                "model": "unknown",
+                "state": "not detected",
+                "sim": "unknown",
+                "access": "unknown",
+                "operator": "unknown",
+                "signal_percent": None,
+            },
+            "connection": get_connection_summary(),
+        }
+
+    detail_proc = run_command(["mmcli", "-m", modem["index"]], check=False)
+    detail_text = (detail_proc.stdout or "") + "\n" + (detail_proc.stderr or "")
+    modem_detail = parse_mmcli_modem_detail(detail_text)
+    enrich_sim_status(modem_detail)
+    modem_detail["path"] = modem["path"]
+
+    return {
+        "power": power_state,
+        "detected": True,
+        "modem": modem_detail,
+        "connection": get_connection_summary(),
+    }
+
+
+def print_4g_human(status: Dict[str, object]) -> None:
+    print("uConsole 4G")
+    print("")
+    print(f"Power:       {status['power']}")
+    print(f"Detected:    {'yes' if status['detected'] else 'no'}")
+
+    modem = status["modem"]
+    if not status["detected"]:
+        print("State:       not detected")
+        return
+
+    modem_name = f"{modem['manufacturer']} {modem['model']}".strip()
+    print(f"Modem:       {modem_name}")
+    print(f"State:       {modem['state']}")
+    print(f"SIM:         {modem['sim']}")
+    print(f"Access:      {modem['access']}")
+    print(f"Operator:    {modem['operator']}")
+    signal = modem["signal_percent"]
+    print(f"Signal:      {signal}%" if signal is not None else "Signal:      unknown")
+    connection = status["connection"]
+    print(f"Connection:  {'connected' if connection['connected'] else 'disconnected'}")
+    print(f"Interface:   {connection['interface']}")
+
+
+def check_root_for_control(command_example: str) -> None:
+    if os.geteuid() != 0:
+        raise UserVisibleError(
+            "This command needs root privileges. "
+            f"Try: sudo uconsolectl {command_example}",
+            code=1,
+        )
+
+
+def pinctrl_set(gpio: int, high: bool) -> None:
+    ensure_cmd("pinctrl", "Install Raspberry Pi utilities or check your system PATH.")
+    level = "dh" if high else "dl"
+    run_command(["pinctrl", "set", str(gpio), "op", level], check=True)
+
+
+def handle_4g_on(conf: configparser.ConfigParser) -> int:
+    check_root_for_control("4g on")
+    ensure_cmd("mmcli", "Make sure ModemManager.service is running.")
+    ensure_cmd("pinctrl", "Install Raspberry Pi utilities or check your system PATH.")
+
+    power_gpio = conf.getint("4g", "power_gpio")
+    reset_gpio = conf.getint("4g", "reset_gpio")
+    timeout_sec = conf.getint("4g", "scan_timeout_sec", fallback=10)
+
+    pinctrl_set(power_gpio, True)
+    print("4G power: on")
+
+    pinctrl_set(reset_gpio, True)
+    time.sleep(1)
+    pinctrl_set(reset_gpio, False)
+
+    run_command(["mmcli", "--scan-modems"], check=False)
+    print("Modem scan requested.")
+
+    deadline = time.time() + max(1, timeout_sec)
+    detected = None
+    while time.time() < deadline:
+        detected = select_modem_index(conf)
+        if detected is not None:
+            break
+        time.sleep(1)
+
+    if detected is not None:
+        print(f"Detected modem: {detected['path']}")
+    else:
+        print("Warning: no modem detected after scan timeout.")
+
+    return 0
+
+
+def handle_4g_off(conf: configparser.ConfigParser) -> int:
+    check_root_for_control("4g off")
+    ensure_cmd("mmcli", "Make sure ModemManager.service is running.")
+    ensure_cmd("pinctrl", "Install Raspberry Pi utilities or check your system PATH.")
+
+    power_gpio = conf.getint("4g", "power_gpio")
+    modem = select_modem_index(conf)
+
+    if modem is not None:
+        try:
+            run_command(["mmcli", "-m", modem["index"], "--disable"], check=True)
+            print("4G modem disabled.")
+        except UserVisibleError:
+            print("Warning: modem disable failed, powering off GPIO anyway.")
+    else:
+        print("No modem detected. Powering off GPIO only.")
+
+    pinctrl_set(power_gpio, False)
+    print("4G power: off")
+    return 0
+
+
+def handle_4g_reset(conf: configparser.ConfigParser) -> int:
+    check_root_for_control("4g reset")
+    print("Restarting 4G module...")
+    handle_4g_off(conf)
+    time.sleep(1)
+    handle_4g_on(conf)
+    return 0
+
+
+def handle_4g_status(conf: configparser.ConfigParser, as_json: bool) -> int:
+    status = get_4g_status(conf)
+    if as_json:
+        print(json.dumps(status, ensure_ascii=True, indent=2))
+    else:
+        print_4g_human(status)
+    return 0
+
+
+def handle_battery(conf: configparser.ConfigParser, raw: bool, as_json: bool) -> int:
+    path = conf.get("battery", "uevent_path")
+    raw_text, uevent = read_battery_uevent(path)
+
+    if raw:
+        print(raw_text.rstrip("\n"))
+        return 0
+
+    status = build_battery_status(uevent)
+    if as_json:
+        print(json.dumps(status, ensure_ascii=True, indent=2))
+    else:
+        print_battery_human(status)
+    return 0
+
+
+def handle_summary_status(conf: configparser.ConfigParser, as_json: bool) -> int:
+    _, battery_uevent = read_battery_uevent(conf.get("battery", "uevent_path"))
+    battery = build_battery_status(battery_uevent)
+    four_g = get_4g_status(conf)
+
+    if as_json:
+        payload = {
+            "battery": {
+                "status": battery["status"],
+                "capacity_percent": battery["capacity_percent"],
+                "voltage_v": battery["voltage_v"],
+                "current_a": battery["current_a"],
+                "power_w": battery["power_w"],
+                "health": battery["health"],
+                "present": battery["present"],
+                "online": battery["online"],
+            },
+            "four_g": {
+                "power": four_g["power"],
+                "detected": four_g["detected"],
+                "state": four_g["modem"]["state"],
+                "access": four_g["modem"]["access"],
+                "operator": four_g["modem"]["operator"],
+                "signal_percent": four_g["modem"]["signal_percent"],
+            },
+        }
+        print(json.dumps(payload, ensure_ascii=True, indent=2))
+        return 0
+
+    print("uConsole Status")
+    print("")
+
+    cap = battery["capacity_percent"]
+    cap_text = f"{cap}%" if cap is not None else "unknown"
+    pwr_text = format_float(battery["power_w"], 2)
+    print(f"Battery: {cap_text}, {battery['status']}, {pwr_text} W")
+
+    if four_g["detected"]:
+        modem = four_g["modem"]
+        sig = modem["signal_percent"]
+        sig_text = f", {sig}%" if sig is not None else ""
+        print(f"4G:      detected, {modem['state']}, {modem['access']}{sig_text}")
+    else:
+        print("4G:      not detected")
+
+    return 0
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="uconsolectl",
+        description="uConsole helper CLI for 4G and battery status",
+    )
+    parser.add_argument("--debug", action="store_true", help="show traceback on errors")
+
+    sub = parser.add_subparsers(dest="command")
+
+    cmd_4g = sub.add_parser("4g", help="4G modem controls")
+    sub_4g = cmd_4g.add_subparsers(dest="four_g_command")
+
+    sub_4g.add_parser("on", help="power on 4G module")
+    sub_4g.add_parser("off", help="power off 4G module")
+    sub_4g.add_parser("reset", help="reset 4G module")
+
+    cmd_4g_status = sub_4g.add_parser("status", help="show 4G status")
+    cmd_4g_status.add_argument("--json", action="store_true", help="json output")
+
+    cmd_battery = sub.add_parser("battery", help="show battery status")
+    cmd_battery.add_argument("raw", nargs="?", help="print raw uevent")
+    cmd_battery.add_argument("--json", action="store_true", help="json output")
+
+    cmd_status = sub.add_parser("status", help="show summary status")
+    cmd_status.add_argument("--json", action="store_true", help="json output")
+
+    return parser
+
+
+def main() -> int:
+    parser = build_parser()
+    args = parser.parse_args()
+
+    conf = load_config()
+
+    if args.command == "4g":
+        if args.four_g_command == "on":
+            return handle_4g_on(conf)
+        if args.four_g_command == "off":
+            return handle_4g_off(conf)
+        if args.four_g_command == "reset":
+            return handle_4g_reset(conf)
+        if args.four_g_command == "status":
+            return handle_4g_status(conf, as_json=args.json)
+        parser.print_usage(sys.stderr)
+        return 2
+
+    if args.command == "battery":
+        if args.raw not in (None, "raw"):
+            raise UserVisibleError(
+                "Invalid battery subcommand. Use: uconsolectl battery [raw] [--json]",
+                code=2,
+            )
+        if args.raw == "raw" and args.json:
+            raise UserVisibleError("battery raw does not support --json", code=2)
+        return handle_battery(conf, raw=(args.raw == "raw"), as_json=args.json)
+
+    if args.command == "status":
+        return handle_summary_status(conf, as_json=args.json)
+
+    parser.print_usage(sys.stderr)
+    return 2
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except UserVisibleError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        raise SystemExit(exc.code)
+    except KeyboardInterrupt:
+        print("Error: interrupted", file=sys.stderr)
+        raise SystemExit(130)
+    except Exception as exc:
+        debug = "--debug" in sys.argv
+        if debug:
+            raise
+        print(f"Error: {exc}", file=sys.stderr)
+        raise SystemExit(1)
