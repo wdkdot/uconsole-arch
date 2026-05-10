@@ -1,8 +1,8 @@
-pkgbase=linux-uconsole-cm5-git
+pkgbase=linux-uconsole-cm4-git
 pkgname=("${pkgbase}")
 pkgver=r1328974.6fca6f3b870d
 pkgrel=1
-pkgdesc="Linux kernel for ClockworkPi uConsole with Raspberry Pi CM5"
+pkgdesc="Linux kernel for ClockworkPi uConsole with Raspberry Pi CM4"
 arch=('aarch64')
 url="https://github.com/ak-rex/ClockworkPi-linux"
 license=('GPL-2.0-only')
@@ -10,9 +10,9 @@ depends=('coreutils' 'kmod' 'mkinitcpio')
 makedepends=('git' 'bc' 'bison' 'flex' 'openssl' 'elfutils' 'pahole' 'cpio' 'perl' 'tar' 'xz')
 options=('!strip')
 
-# This package installs the same DTB/DTBO paths as linux-uconsole-cm4-git.
+# This package installs the same DTB/DTBO paths as linux-uconsole-cm5-git.
 # Keep them mutually exclusive unless DTB/DTBO files are split into a separate boot-files package.
-conflicts=('linux-uconsole-cm4-git')
+conflicts=('linux-uconsole-cm5-git')
 
 source=(
   "kernel::git+https://github.com/ak-rex/ClockworkPi-linux.git"
@@ -28,10 +28,17 @@ pkgver() {
 
 prepare() {
   cd "${srcdir}/kernel"
-  make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- bcm2712_defconfig
+
+  make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- bcm2711_defconfig
+
+  # CM4 compatibility kernel: use 4K memory pages.
+  scripts/config --enable ARM64_4K_PAGES
+  scripts/config --disable ARM64_16K_PAGES
+  scripts/config --disable ARM64_64K_PAGES
 
   scripts/config --disable LOCALVERSION_AUTO
-  scripts/config --set-str LOCALVERSION "-uconsole-cm5"
+  scripts/config --set-str LOCALVERSION "-uconsole-cm4"
+
   make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- olddefconfig
 }
 
