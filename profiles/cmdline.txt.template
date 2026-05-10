@@ -1,1 +1,0 @@
-root=PARTUUID=__ROOT_PARTUUID__ rw rootwait console=tty1 quiet
