@@ -32,7 +32,7 @@ pkgs/*/hostap/
 # Arch package build artifacts
 pkg/
 src/
-pkgs/linux-uconsole-cm5-git/kernel/
+pkgs/linux-uconsole-*-git/kernel/
 *.pkg.tar.*
 *.src.tar.*
 *.db
