@@ -1,8 +1,31 @@
-# Basic Raspberry Pi / CM5 boot settings
+# Basic Raspberry Pi Compute Module / uConsole boot settings
 arm_64bit=1
 disable_overscan=1
 
-[pi5]
+[cm4]
+# Kernel
+kernel=vmlinuz-linux-uconsole-cm4-git
+initramfs initramfs-linux-uconsole-cm4-git.img followkernel
+
+# ClockworkPi uConsole CM4 hardware overlay
+dtoverlay=clockworkpi-uconsole
+
+# Pi 4 / CM4 KMS display driver
+dtoverlay=vc4-kms-v3d-pi4,cma-384
+
+# uConsole CM4: UART is commonly enabled for CM4-based setups
+enable_uart=1
+
+# Audio mappings
+dtparam=audio=on
+dtoverlay=audremap,pins_12_13
+
+
+[cm5]
+# Kernel
+kernel=vmlinuz-linux-uconsole-cm5-git
+initramfs initramfs-linux-uconsole-cm5-git.img followkernel
+
 # ClockworkPi uConsole CM5 hardware overlay
 dtoverlay=clockworkpi-uconsole-cm5
 
@@ -15,24 +38,25 @@ dtparam=pciex1=off
 # On CM5 this is usually unnecessary
 enable_uart=0
 
-[all]
-# Kernel
-kernel=vmlinuz-linux-uconsole-cm5-git
-initramfs initramfs-linux-uconsole-cm5-git.img followkernel
-
-# USB host mode for uConsole internal/external USB path
-dtoverlay=dwc2,dr_mode=host
-
-# Use external antenna on Raspberry Pi CM5 U.FL connector
-dtparam=ant2
-
-# USB port current limit increase
+# USB port current limit increase for Pi 5 / CM5
 usb_max_current_enable=1
 
-# Optional audio mappings, useful later
+# Audio mappings
 dtparam=audio=on
 dtoverlay=audremap-pi5,pins_12_13
 
-# Speaker
+
+[all]
+# USB host mode for uConsole internal/external USB path
+dtoverlay=dwc2,dr_mode=host
+
+# Use external antenna on Raspberry Pi CM U.FL connector
+dtparam=ant2
+
+# Headphone detect input
+# GPIO 10 is used by uConsole audio hardware to detect headphone plug state.
+gpio=10=ip,np
+
+# Speaker amplifier
+# Uncomment the following line to enable the speaker amplifier by default at boot.
 # gpio=11=op,dh
-# gpio=10=ip,np
