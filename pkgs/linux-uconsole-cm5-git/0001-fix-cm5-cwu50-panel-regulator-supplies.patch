@@ -1,0 +1,15 @@
+diff --git a/arch/arm/boot/dts/overlays/clockworkpi-uconsole-cm5-overlay.dts b/arch/arm/boot/dts/overlays/clockworkpi-uconsole-cm5-overlay.dts
+index 60badef9ef8f..2b2c38b420e2 100644
+--- a/arch/arm/boot/dts/overlays/clockworkpi-uconsole-cm5-overlay.dts
++++ b/arch/arm/boot/dts/overlays/clockworkpi-uconsole-cm5-overlay.dts
+@@ -167,8 +167,8 @@ panel_cwu50: panel@0 {
+ 				reset-gpio = <&rp1_gpio 8 1>; /* GPIO_ACTIVE_LOW */
+ 				backlight = <&ocp8178_backlight>;
+ 				rotation = <90>;
+-				vci-supply = <&reg_dcdc3>;
+-				iovcc-supply = <&reg_aldo2>;
++				iovcc-supply = <&reg_dcdc3>;
++				vci-supply = <&reg_aldo2>;
+ 				status = "okay";
+ 				port {
+ 					panel_dsi_port: endpoint {

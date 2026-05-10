@@ -1,19 +1,21 @@
 pkgbase=linux-uconsole-cm5-git
 pkgname=("${pkgbase}")
-pkgver=r1328974.6fca6f3b870d
+pkgver=r1329753.0272bd66b9bb
 pkgrel=1
 pkgdesc="Linux kernel for ClockworkPi uConsole with Raspberry Pi CM5"
 arch=('aarch64')
 url="https://github.com/ak-rex/ClockworkPi-linux"
 license=('GPL-2.0-only')
 depends=('coreutils' 'kmod' 'mkinitcpio')
-makedepends=('git' 'bc' 'bison' 'flex' 'openssl' 'elfutils' 'pahole' 'cpio' 'perl' 'tar' 'xz')
+makedepends=('git' 'bc' 'bison' 'flex' 'openssl' 'elfutils' 'pahole' 'cpio' 'perl' 'tar' 'xz' 'device-tree-compiler' 'aarch64-linux-gnu-gcc')
 options=('!strip')
 
 source=(
   "kernel::git+https://github.com/ak-rex/ClockworkPi-linux.git"
+  "0001-fix-cm5-cwu50-panel-regulator-supplies.patch"
 )
 sha256sums=(
+  'SKIP'
   'SKIP'
 )
 
@@ -24,6 +26,9 @@ pkgver() {
 
 prepare() {
   cd "${srcdir}/kernel"
+  
+  patch -Np1 -i "${srcdir}/0001-fix-cm5-cwu50-panel-regulator-supplies.patch"
+
   make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- bcm2712_defconfig
   make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- olddefconfig
 }
