@@ -4,6 +4,21 @@ set -euo pipefail
 ROOT_DIR="$(git rev-parse --show-toplevel)"
 OUT_DIR="${ROOT_DIR}/output/pkgs"
 
+export SRCDEST="${SRCDEST:-/var/cache/makepkg/src}"
+
+MAKEPKG_CONF="$(mktemp)"
+trap 'rm -f "$MAKEPKG_CONF"' EXIT
+
+cp /etc/makepkg.conf "$MAKEPKG_CONF"
+
+sed -i \
+  -e 's/^CARCH=.*/CARCH="aarch64"/' \
+  -e 's/^CHOST=.*/CHOST="aarch64-linux-gnu"/' \
+  "$MAKEPKG_CONF"
+
+mkdir -p "${OUT_DIR}"
+mkdir -p "${SRCDEST}"
+
 mkdir -p "${OUT_DIR}"
 
 packages=(
@@ -20,7 +35,7 @@ for pkg in "${packages[@]}"; do
   rm -rf pkg
   rm -f ./*.pkg.tar.zst ./*.pkg.tar.zst.sig
 
-  makepkg -sA --noconfirm --needed
+  makepkg --config "$MAKEPKG_CONF" -sA --noconfirm --needed
 
   cp -v ./*.pkg.tar.zst "${OUT_DIR}/"
 
