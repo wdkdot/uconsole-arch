@@ -19,8 +19,6 @@ sed -i \
 mkdir -p "${OUT_DIR}"
 mkdir -p "${SRCDEST}"
 
-mkdir -p "${OUT_DIR}"
-
 packages=(
   "linux-uconsole-cm5-git"
   "linux-uconsole-cm4-git"
