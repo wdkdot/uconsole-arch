@@ -18,7 +18,11 @@ This project is developed with reference to existing community work around uCons
 
 ## Installation
 
-### Image Selection
+### Prebuilt Images
+
+Prebuilt images are planned but not available yet.
+
+For now, use the manual setup instructions below to create an SD card or image manually.
 
 - `uconsole-arch-cm5.img`
   - Image for uConsole with Raspberry Pi CM5
