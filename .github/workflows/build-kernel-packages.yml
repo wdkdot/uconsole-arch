@@ -31,10 +31,19 @@ jobs:
           whoami
           df -h
           aarch64-linux-gnu-gcc --version
+          repo-add --version
 
       - name: Build kernel packages
         run: |
           ./scripts/build-kernel-packages.sh
+
+      - name: Create pacman repository
+        run: |
+          rm -rf output/repo/aarch64
+          mkdir -p output/repo/aarch64
+          cp output/pkgs/*.pkg.tar.zst output/repo/aarch64/
+          cd output/repo/aarch64
+          repo-add uconsole-arch.db.tar.zst *.pkg.tar.zst
 
       - name: Upload package artifacts
         uses: actions/upload-artifact@v4
@@ -42,3 +51,16 @@ jobs:
           name: uconsole-arch-kernel-packages
           path: output/pkgs/*.pkg.tar.zst
           retention-days: 14
+
+      - name: Upload pacman repo artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: uconsole-arch-repo-aarch64
+          path: output/repo/aarch64/**
+          retention-days: 14
+
+      - name: Publish pacman repository to arch-mirror
+        if: github.ref == 'refs/heads/main'
+        run: |
+          rsync -avh --delete output/repo/aarch64/ \
+            arch-mirror:/srv/uconsole-arch/aarch64/
