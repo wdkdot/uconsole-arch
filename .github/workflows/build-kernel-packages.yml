@@ -41,8 +41,26 @@ jobs:
         run: |
           rm -rf output/repo/aarch64
           mkdir -p output/repo/aarch64
+
+          rsync -avh arch-mirror:/srv/uconsole-arch/aarch64/*.pkg.tar.zst output/repo/aarch64/ || true
+
           cp output/pkgs/*.pkg.tar.zst output/repo/aarch64/
+
+          keep_latest_two() {
+            pattern="$1"
+
+            files="$(ls -1t $pattern 2>/dev/null || true)"
+
+            if [ -n "$files" ]; then
+              echo "$files" | tail -n +3 | xargs -r rm -f
+            fi
+          }
+
+          keep_latest_two "output/repo/aarch64/linux-uconsole-cm5-git-*.pkg.tar.zst"
+          keep_latest_two "output/repo/aarch64/linux-uconsole-cm4-git-*.pkg.tar.zst"
+
           cd output/repo/aarch64
+          rm -f uconsole-arch.db* uconsole-arch.files*
           repo-add uconsole-arch.db.tar.zst *.pkg.tar.zst
 
       - name: Upload package artifacts
