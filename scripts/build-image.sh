@@ -21,6 +21,9 @@ SHRINK_FREE_SPACE="768M"
 COMPRESS="none"
 COMPRESSION_LEVEL="19"
 COMPRESSED_IMAGE=""
+ZERO_FREE_SPACE=1
+WIFI_PACKAGE="wpa_supplicant-raspberrypi"
+WIFI_FALLBACK_PACKAGE="wpa_supplicant"
 
 EXTRA_PACKAGES=()
 BASE_PACKAGES=(networkmanager openssh sudo vim nano)
@@ -45,11 +48,14 @@ Options:
   --alarm-mirror-url URL      Replace Arch Linux ARM mirrorlist with this mirror URL
   --cache-dir DIR             Download cache directory. Default: .cache under repo root
   --hostname NAME             Hostname written into the image. Default: uconsole
+  --wifi-package PKG          Preferred Wi-Fi package. Default: wpa_supplicant-raspberrypi
+  --wifi-fallback-package PKG Fallback Wi-Fi package. Default: wpa_supplicant
   --extra-package PKG         Install an extra package. Can be used multiple times
   --minimize                  Shrink root filesystem/partition after build
   --shrink-free-space SIZE    Free space to leave in rootfs when minimizing. Default: 768M
   --compress none|zst|xz      Create compressed image next to the raw image. Default: none
   --compression-level N       Compression level. Default: 19
+  --no-zero-free-space        Skip zero-filling free space before compression
   --verify-rootfs             Verify rootfs tarball with .sig using local GPG keyring
   --keep-mounted              Do not unmount image on failure, for debugging
   -h, --help                  Show this help
@@ -97,9 +103,7 @@ cleanup() {
       "$MOUNT_ROOT/dev" \
       "$MOUNT_ROOT/boot" \
       "$MOUNT_ROOT"; do
-      if mountpoint -q "$mp" 2>/dev/null; then
-        umount "$mp" || umount -l "$mp" || true
-      fi
+      try_umount "$mp"
     done
   fi
 
@@ -121,6 +125,31 @@ need_root() {
 
 need_cmd() {
   command -v "$1" >/dev/null 2>&1 || die "missing required command: $1"
+}
+
+try_umount() {
+  local mp="$1"
+
+  if ! mountpoint -q "$mp" 2>/dev/null; then
+    return 0
+  fi
+
+  if umount "$mp" 2>/dev/null; then
+    return 0
+  fi
+
+  log_warn "normal unmount failed for $mp; trying to terminate processes using it"
+  if command -v fuser >/dev/null 2>&1; then
+    fuser -km "$mp" 2>/dev/null || true
+    sleep 1
+  fi
+
+  if umount "$mp" 2>/dev/null; then
+    return 0
+  fi
+
+  log_warn "normal unmount still failed for $mp; using lazy unmount"
+  umount -l "$mp" 2>/dev/null || true
 }
 
 abs_path() {
@@ -202,7 +231,7 @@ check_loop_support() {
 check_dependencies() {
   step "checking host dependencies"
 
-  local cmds=(parted losetup partprobe udevadm mkfs.vfat mkfs.ext4 bsdtar curl arch-chroot mount umount mountpoint blkid findmnt truncate awk sed grep numfmt)
+  local cmds=(parted losetup partprobe udevadm mkfs.vfat mkfs.ext4 bsdtar curl arch-chroot mount umount mountpoint blkid findmnt truncate awk sed grep numfmt fuser sfdisk blockdev)
   for cmd in "${cmds[@]}"; do
     need_cmd "$cmd"
   done
@@ -251,6 +280,10 @@ parse_args() {
         CACHE_DIR="${2:-}"; shift 2 ;;
       --hostname)
         HOSTNAME="${2:-}"; shift 2 ;;
+      --wifi-package)
+        WIFI_PACKAGE="${2:-}"; shift 2 ;;
+      --wifi-fallback-package)
+        WIFI_FALLBACK_PACKAGE="${2:-}"; shift 2 ;;
       --extra-package)
         EXTRA_PACKAGES+=("${2:-}"); shift 2 ;;
       --minimize)
@@ -261,6 +294,8 @@ parse_args() {
         COMPRESS="${2:-}"; shift 2 ;;
       --compression-level)
         COMPRESSION_LEVEL="${2:-}"; shift 2 ;;
+      --no-zero-free-space)
+        ZERO_FREE_SPACE=0; shift ;;
       --verify-rootfs)
         VERIFY_ROOTFS=1; shift ;;
       --keep-mounted)
@@ -455,7 +490,7 @@ write_chroot_script() {
   esac
 
   local package_list
-  package_list="${BASE_PACKAGES[*]} ${kernel_pkg} wpa_supplicant-raspberrypi ${EXTRA_PACKAGES[*]}"
+  package_list="${BASE_PACKAGES[*]} ${kernel_pkg} ${EXTRA_PACKAGES[*]}"
 
   cat > "$MOUNT_ROOT/root/uconsole-image-setup.sh" <<EOF_CHROOT
 #!/usr/bin/env bash
@@ -513,8 +548,18 @@ run_pacman() {
 log_info "refreshing package databases"
 run_pacman -Sy --noconfirm
 
+log_info "checking Wi-Fi package availability"
+if pacman --disable-sandbox -Si '$WIFI_PACKAGE' >/dev/null 2>&1; then
+  log_info "using Wi-Fi package: $WIFI_PACKAGE"
+  WIFI_TARGET='$WIFI_PACKAGE'
+else
+  log_warn "Wi-Fi package not found: $WIFI_PACKAGE"
+  log_warn "falling back to: $WIFI_FALLBACK_PACKAGE"
+  WIFI_TARGET='$WIFI_FALLBACK_PACKAGE'
+fi
+
 log_info "installing target packages"
-run_pacman -S --needed --noconfirm $package_list
+run_pacman -S --needed --noconfirm $package_list "\$WIFI_TARGET"
 
 log_info "generating initramfs: $mkinitcpio_preset"
 mkinitcpio -p '$mkinitcpio_preset'
@@ -523,8 +568,9 @@ log_info "enabling services"
 systemctl enable NetworkManager.service
 systemctl enable sshd.service
 
-log_info "cleaning pacman package cache"
-run_pacman -Scc --noconfirm || true
+log_info "cleaning package cache and sync databases"
+rm -rf /var/cache/pacman/pkg/*
+rm -rf /var/lib/pacman/sync/*
 
 log_ok "chroot setup completed"
 EOF_CHROOT
@@ -540,6 +586,49 @@ run_chroot_setup() {
   log_ok "chroot setup finished"
 }
 
+optimize_mounted_image() {
+  step "optimizing mounted image contents"
+
+  log_info "removing build-only helper files"
+  rm -f "$MOUNT_ROOT/root/uconsole-image-setup.sh"
+  rm -f "$MOUNT_ROOT/usr/bin/qemu-aarch64-static"
+
+  log_info "removing pacman caches and sync databases"
+  rm -rf "$MOUNT_ROOT/var/cache/pacman/pkg"/*
+  rm -rf "$MOUNT_ROOT/var/lib/pacman/sync"/*
+
+  log_info "removing temporary files"
+  rm -rf "$MOUNT_ROOT/tmp"/*
+  rm -rf "$MOUNT_ROOT/var/tmp"/*
+
+  log_info "truncating logs"
+  if [[ -d "$MOUNT_ROOT/var/log" ]]; then
+    find "$MOUNT_ROOT/var/log" -type f -exec truncate -s 0 {} + 2>/dev/null || true
+    rm -rf "$MOUNT_ROOT/var/log/journal"/* 2>/dev/null || true
+  fi
+
+  log_info "resetting machine-id for first boot regeneration"
+  rm -f "$MOUNT_ROOT/var/lib/dbus/machine-id"
+  : > "$MOUNT_ROOT/etc/machine-id"
+
+  log_info "syncing filesystem changes"
+  sync
+
+  if [[ "$ZERO_FREE_SPACE" -eq 1 ]]; then
+    step "zero-filling free space for better compression"
+    log_info "this may take a while and will end with 'No space left on device', which is expected"
+    dd if=/dev/zero of="$MOUNT_ROOT/.zero-fill" bs=16M status=progress 2>/dev/null || true
+    sync
+    rm -f "$MOUNT_ROOT/.zero-fill"
+    sync
+    log_ok "free space zero-filled"
+  else
+    log_warn "free-space zero-fill skipped"
+  fi
+
+  log_ok "mounted image optimization completed"
+}
+
 unmount_image() {
   step "unmounting image"
 
@@ -550,9 +639,7 @@ unmount_image() {
     "$MOUNT_ROOT/dev" \
     "$MOUNT_ROOT/boot" \
     "$MOUNT_ROOT"; do
-    if mountpoint -q "$mp" 2>/dev/null; then
-      umount "$mp"
-    fi
+    try_umount "$mp"
   done
 
   rmdir "$MOUNT_ROOT" 2>/dev/null || true
@@ -592,7 +679,22 @@ minimize_image() {
   new_image_size="$(align_up $((new_end + 1)) 1048576)"
 
   log_info "resizing root partition to $part_bytes bytes"
-  parted -s "$LOOPDEV" unit B resizepart 2 "${new_end}B"
+  local sector_size part_sectors dump_file new_dump_file
+  sector_size="$(blockdev --getss "$LOOPDEV")"
+  part_sectors=$((part_bytes / sector_size))
+  dump_file="$(mktemp /tmp/uconsole-sfdisk.XXXXXX)"
+  new_dump_file="$(mktemp /tmp/uconsole-sfdisk-new.XXXXXX)"
+
+  sfdisk --dump "$LOOPDEV" > "$dump_file"
+  awk -v part="$root_part" -v size="$part_sectors" '
+    index($0, part " :") == 1 {
+      sub(/size=[[:space:]]*[0-9]+/, "size= " size)
+    }
+    { print }
+  ' "$dump_file" > "$new_dump_file"
+
+  sfdisk "$LOOPDEV" < "$new_dump_file"
+  rm -f "$dump_file" "$new_dump_file"
   partprobe "$LOOPDEV" || true
   udevadm settle
 
@@ -647,6 +749,12 @@ print_summary() {
     log_warn "after flashing to a larger SD card, expand the root partition/filesystem to use full capacity"
   fi
 
+  if [[ "$ZERO_FREE_SPACE" -eq 1 ]]; then
+    log_info "zero-filled free space: yes"
+  else
+    log_info "zero-filled free space: no"
+  fi
+
   if [[ -n "$COMPRESSED_IMAGE" ]]; then
     log_info "compressed output: $COMPRESSED_IMAGE"
   fi
@@ -667,6 +775,7 @@ main() {
   prepare_chroot_mounts
   write_chroot_script
   run_chroot_setup
+  optimize_mounted_image
   unmount_image
 
   if [[ "$MINIMIZE" -eq 1 ]]; then
