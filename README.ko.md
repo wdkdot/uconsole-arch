@@ -20,10 +20,6 @@
 
 ### 사전 빌드 이미지
 
-사전 빌드 이미지는 제공할 예정이지만 아직 사용할 수 없습니다.
-
-현재는 아래의 직접 구성 절차를 따라 SD 카드나 이미지를 수동으로 만들어 사용합니다.
-
 - `uconsole-arch-cm5.img`
   - Raspberry Pi CM5를 사용하는 uConsole용 이미지
   - `linux-uconsole-cm5-git` 커널 패키지 사용
