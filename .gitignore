@@ -31,10 +31,8 @@ pkgs/*/hostap/
 
 # Arch package build artifacts
 pkg/
-pkgs/linux-uconsole-cm5-git/src/
-pkgs/uconsolectl/src/
-pkgs/wpa_supplicant-raspberrypi/src/
-pkgs/linux-uconsole-cm5-git/kernel/
+src/
+pkgs/linux-uconsole-*-git/kernel/
 *.pkg.tar.*
 *.src.tar.*
 *.db

@@ -1,0 +1,1 @@
+root=LABEL=alarm-root rw rootwait console=tty1 loglevel=3 fsck.repair=yes
