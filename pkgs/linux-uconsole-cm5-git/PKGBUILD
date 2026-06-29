@@ -55,6 +55,9 @@ build() {
 package() {
   cd "${srcdir}/kernel"
 
+  local kernelrelease
+  kernelrelease="$(make ARCH=arm64 CROSS_COMPILE="${_cross_compile}" kernelrelease)"
+
   install -Dm644 "arch/arm64/boot/Image.gz" \
     "${pkgdir}/boot/vmlinuz-${pkgbase}"
 
@@ -62,6 +65,10 @@ package() {
        CROSS_COMPILE="${_cross_compile}" \
        INSTALL_MOD_PATH="${pkgdir}/usr" \
        modules_install
+
+  install -Dm644 "arch/arm64/boot/Image.gz" \
+    "${pkgdir}/usr/lib/modules/${kernelrelease}/vmlinuz"
+  echo "${pkgbase}" > "${pkgdir}/usr/lib/modules/${kernelrelease}/pkgbase"
 
   install -d "${pkgdir}/boot"
   cp -a arch/arm64/boot/dts/broadcom/*.dtb "${pkgdir}/boot/"

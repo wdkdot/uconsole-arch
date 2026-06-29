@@ -80,14 +80,13 @@ pacman -U linux-uconsole-cm5-git-*.pkg.tar.zst
 mkinitcpio -p linux-uconsole-cm5-git
 ```
 
-기본 CM5 커널은 16K 메모리 페이지를 사용합니다. CM5 시스템을 선택형 4K 페이지 커널로 바꾸려면 커널 패키지를 교체한 뒤 같은 CM5 initramfs preset을 다시 생성합니다.
+기본 CM5 커널은 16K 메모리 페이지를 사용합니다. CM5 시스템을 선택형 4K 페이지 커널로 바꾸려면 커널 패키지를 교체합니다.
 
 ```bash
 pacman -S linux-uconsole-cm5-4k-git
-mkinitcpio -p linux-uconsole-cm5-git
 ```
 
-`linux-uconsole-cm5-4k-git`는 `linux-uconsole-cm5-git`와 같은 CM5 부팅 슬롯을 사용하므로 `/boot/config.txt`는 수정하지 않아도 됩니다. 기본 16K 커널로 돌아가려면 `linux-uconsole-cm5-git`를 다시 설치하고 `mkinitcpio -p linux-uconsole-cm5-git`를 다시 실행합니다.
+`linux-uconsole-cm5-4k-git`는 `linux-uconsole-cm5-git`와 같은 CM5 부팅 슬롯을 사용하므로 `/boot/config.txt`는 수정하지 않아도 됩니다. 패키지는 `/usr/lib/modules/<kernelrelease>/vmlinuz`를 설치하므로 표준 `mkinitcpio` pacman hook이 initramfs를 자동으로 다시 생성합니다. 기본 16K 커널로 돌아가려면 `linux-uconsole-cm5-git`를 다시 설치합니다.
 
 CM4 이미지에는 다음 커널 패키지를 설치합니다.
 

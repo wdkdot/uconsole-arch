@@ -80,14 +80,13 @@ pacman -U linux-uconsole-cm5-git-*.pkg.tar.zst
 mkinitcpio -p linux-uconsole-cm5-git
 ```
 
-The default CM5 kernel uses 16K memory pages. To switch a CM5 system to the optional 4K page kernel, replace the kernel package and regenerate the same CM5 initramfs preset:
+The default CM5 kernel uses 16K memory pages. To switch a CM5 system to the optional 4K page kernel, replace the kernel package:
 
 ```bash
 pacman -S linux-uconsole-cm5-4k-git
-mkinitcpio -p linux-uconsole-cm5-git
 ```
 
-`linux-uconsole-cm5-4k-git` uses the same CM5 boot slot as `linux-uconsole-cm5-git`, so `/boot/config.txt` does not need to be changed. To switch back to the default 16K kernel, reinstall `linux-uconsole-cm5-git` and run `mkinitcpio -p linux-uconsole-cm5-git` again.
+`linux-uconsole-cm5-4k-git` uses the same CM5 boot slot as `linux-uconsole-cm5-git`, so `/boot/config.txt` does not need to be changed. The package installs `/usr/lib/modules/<kernelrelease>/vmlinuz`, which lets the standard `mkinitcpio` pacman hook regenerate the initramfs automatically. To switch back to the default 16K kernel, reinstall `linux-uconsole-cm5-git`.
 
 For a CM4 image, install the following kernel package:
 
