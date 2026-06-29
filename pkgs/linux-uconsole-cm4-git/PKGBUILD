@@ -7,7 +7,7 @@ arch=('aarch64')
 url="https://github.com/ak-rex/ClockworkPi-linux"
 license=('GPL-2.0-only')
 depends=('coreutils' 'kmod' 'mkinitcpio')
-makedepends=('git' 'bc' 'bison' 'flex' 'openssl' 'elfutils' 'pahole' 'cpio' 'perl' 'tar' 'xz')
+makedepends=('git' 'ccache' 'bc' 'bison' 'flex' 'openssl' 'elfutils' 'pahole' 'cpio' 'perl' 'tar' 'xz')
 options=('!strip')
 
 # This package installs the same DTB/DTBO paths as linux-uconsole-cm5-git.
@@ -21,6 +21,8 @@ sha256sums=(
   'SKIP'
 )
 
+_cross_compile="${KERNEL_CROSS_COMPILE:-aarch64-linux-gnu-}"
+
 pkgver() {
   cd "${srcdir}/kernel"
   printf "r%s.%s" "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
@@ -29,7 +31,7 @@ pkgver() {
 prepare() {
   cd "${srcdir}/kernel"
 
-  make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- bcm2711_defconfig
+  make ARCH=arm64 CROSS_COMPILE="${_cross_compile}" bcm2711_defconfig
 
   # CM4 compatibility kernel: use 4K memory pages.
   scripts/config --enable ARM64_4K_PAGES
@@ -39,14 +41,14 @@ prepare() {
   scripts/config --disable LOCALVERSION_AUTO
   scripts/config --set-str LOCALVERSION "-uconsole-cm4"
 
-  make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- olddefconfig
+  make ARCH=arm64 CROSS_COMPILE="${_cross_compile}" olddefconfig
 }
 
 build() {
   cd "${srcdir}/kernel"
 
   make ARCH=arm64 \
-       CROSS_COMPILE=aarch64-linux-gnu- \
+       CROSS_COMPILE="${_cross_compile}" \
        -j"$(nproc)" \
        Image.gz modules dtbs
 }
@@ -58,7 +60,7 @@ package() {
     "${pkgdir}/boot/vmlinuz-${pkgbase}"
 
   make ARCH=arm64 \
-       CROSS_COMPILE=aarch64-linux-gnu- \
+       CROSS_COMPILE="${_cross_compile}" \
        INSTALL_MOD_PATH="${pkgdir}/usr" \
        modules_install
 

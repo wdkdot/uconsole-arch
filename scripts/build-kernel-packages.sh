@@ -5,6 +5,9 @@ ROOT_DIR="$(git rev-parse --show-toplevel)"
 OUT_DIR="${ROOT_DIR}/output/pkgs"
 
 export SRCDEST="${SRCDEST:-/var/cache/makepkg/src}"
+export CCACHE_DIR="${CCACHE_DIR:-/var/cache/ccache/uconsole-kernel}"
+export CCACHE_BASEDIR="${CCACHE_BASEDIR:-${ROOT_DIR}}"
+export KERNEL_CROSS_COMPILE="${KERNEL_CROSS_COMPILE:-ccache aarch64-linux-gnu-}"
 
 MAKEPKG_CONF="$(mktemp)"
 trap 'rm -f "$MAKEPKG_CONF"' EXIT
@@ -18,6 +21,10 @@ sed -i \
 
 mkdir -p "${OUT_DIR}"
 mkdir -p "${SRCDEST}"
+mkdir -p "${CCACHE_DIR}"
+
+echo "==> Source cache: ${SRCDEST}"
+echo "==> Compiler cache: ${CCACHE_DIR}"
 
 packages=(
   "linux-uconsole-cm5-git"
@@ -42,6 +49,11 @@ for pkg in "${packages[@]}"; do
     cp -v ./*.pkg.tar.zst.sig "${OUT_DIR}/"
   fi
 done
+
+if command -v ccache > /dev/null; then
+  echo "==> ccache stats:"
+  ccache -s
+fi
 
 echo "==> Built packages:"
 ls -lh "${OUT_DIR}"
