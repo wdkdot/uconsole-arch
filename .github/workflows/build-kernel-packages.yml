@@ -86,5 +86,5 @@ jobs:
       - name: Publish pacman repository to arch-mirror
         if: github.ref == 'refs/heads/main'
         run: |
-          rsync -avh --delete output/repo/aarch64/ \
+          rsync -avh --delete --omit-link-times output/repo/aarch64/ \
             arch-mirror:/srv/uconsole-arch/aarch64/
