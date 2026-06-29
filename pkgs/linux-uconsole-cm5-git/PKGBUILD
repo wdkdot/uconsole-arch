@@ -7,7 +7,7 @@ arch=('aarch64')
 url="https://github.com/ak-rex/ClockworkPi-linux"
 license=('GPL-2.0-only')
 depends=('coreutils' 'kmod' 'mkinitcpio')
-makedepends=('git' 'ccache' 'bc' 'bison' 'flex' 'openssl' 'elfutils' 'pahole' 'cpio' 'perl' 'tar' 'xz')
+makedepends=('git' 'bc' 'bison' 'flex' 'openssl' 'elfutils' 'pahole' 'cpio' 'perl' 'tar' 'xz')
 options=('!strip')
 
 # This package installs the same boot slot and DTB/DTBO paths as the CM5 4K

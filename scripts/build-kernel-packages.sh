@@ -7,7 +7,15 @@ OUT_DIR="${ROOT_DIR}/output/pkgs"
 export SRCDEST="${SRCDEST:-/var/cache/makepkg/src}"
 export CCACHE_DIR="${CCACHE_DIR:-${XDG_CACHE_HOME:-${HOME}/.cache}/uconsole-kernel-ccache}"
 export CCACHE_BASEDIR="${CCACHE_BASEDIR:-${ROOT_DIR}}"
-export KERNEL_CROSS_COMPILE="${KERNEL_CROSS_COMPILE:-ccache aarch64-linux-gnu-}"
+
+if [ -z "${KERNEL_CROSS_COMPILE:-}" ]; then
+  if command -v ccache > /dev/null; then
+    export KERNEL_CROSS_COMPILE="ccache aarch64-linux-gnu-"
+  else
+    echo "==> ccache not found; building without compiler cache"
+    export KERNEL_CROSS_COMPILE="aarch64-linux-gnu-"
+  fi
+fi
 
 MAKEPKG_CONF="$(mktemp)"
 trap 'rm -f "$MAKEPKG_CONF"' EXIT
@@ -21,10 +29,14 @@ sed -i \
 
 mkdir -p "${OUT_DIR}"
 mkdir -p "${SRCDEST}"
-mkdir -p "${CCACHE_DIR}"
 
 echo "==> Source cache: ${SRCDEST}"
-echo "==> Compiler cache: ${CCACHE_DIR}"
+if command -v ccache > /dev/null; then
+  mkdir -p "${CCACHE_DIR}"
+  echo "==> Compiler cache: ${CCACHE_DIR}"
+else
+  echo "==> Compiler cache: disabled"
+fi
 
 packages=(
   "linux-uconsole-cm5-git"
