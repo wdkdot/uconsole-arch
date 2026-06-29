@@ -5,7 +5,7 @@ ROOT_DIR="$(git rev-parse --show-toplevel)"
 OUT_DIR="${ROOT_DIR}/output/pkgs"
 
 export SRCDEST="${SRCDEST:-/var/cache/makepkg/src}"
-export CCACHE_DIR="${CCACHE_DIR:-/var/cache/ccache/uconsole-kernel}"
+export CCACHE_DIR="${CCACHE_DIR:-${XDG_CACHE_HOME:-${HOME}/.cache}/uconsole-kernel-ccache}"
 export CCACHE_BASEDIR="${CCACHE_BASEDIR:-${ROOT_DIR}}"
 export KERNEL_CROSS_COMPILE="${KERNEL_CROSS_COMPILE:-ccache aarch64-linux-gnu-}"
 
