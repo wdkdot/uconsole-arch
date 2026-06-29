@@ -70,13 +70,6 @@ jobs:
           path: output/pkgs/*.pkg.tar.zst
           retention-days: 14
 
-      - name: Upload pacman repo artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: uconsole-arch-repo-aarch64
-          path: output/repo/aarch64/**
-          retention-days: 14
-
       - name: Publish pacman repository to arch-mirror
         if: github.ref == 'refs/heads/main'
         run: |
