@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - "pkgs/linux-uconsole-cm5-git/**"
+      - "pkgs/linux-uconsole-cm5-4k-git/**"
       - "pkgs/linux-uconsole-cm4-git/**"
       - "scripts/build-kernel-packages.sh"
       - ".github/workflows/build-kernel-packages.yml"
@@ -42,7 +43,18 @@ jobs:
           rm -rf output/repo/aarch64
           mkdir -p output/repo/aarch64
 
-          rsync -avh arch-mirror:/srv/uconsole-arch/aarch64/*.pkg.tar.zst output/repo/aarch64/ || true
+          for attempt in 1 2 3; do
+            if rsync -avh arch-mirror:/srv/uconsole-arch/aarch64/*.pkg.tar.zst output/repo/aarch64/; then
+              break
+            fi
+
+            if [ "$attempt" -eq 3 ]; then
+              echo "failed to fetch existing packages from arch-mirror after 3 attempts" >&2
+              exit 1
+            fi
+
+            sleep $((attempt * 10))
+          done
 
           cp output/pkgs/*.pkg.tar.zst output/repo/aarch64/
 
@@ -57,6 +69,7 @@ jobs:
           }
 
           keep_latest_two "output/repo/aarch64/linux-uconsole-cm5-git-*.pkg.tar.zst"
+          keep_latest_two "output/repo/aarch64/linux-uconsole-cm5-4k-git-*.pkg.tar.zst"
           keep_latest_two "output/repo/aarch64/linux-uconsole-cm4-git-*.pkg.tar.zst"
 
           cd output/repo/aarch64

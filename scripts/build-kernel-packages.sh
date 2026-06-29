@@ -21,6 +21,7 @@ mkdir -p "${SRCDEST}"
 
 packages=(
   "linux-uconsole-cm5-git"
+  "linux-uconsole-cm5-4k-git"
   "linux-uconsole-cm4-git"
 )
 

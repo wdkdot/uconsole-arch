@@ -11,6 +11,7 @@ This project is developed with reference to existing community work around uCons
 ## Contents
 
 - `linux-uconsole-cm5-git`: kernel package for ClockworkPi uConsole CM5
+- `linux-uconsole-cm5-4k-git`: optional CM5 kernel package with 4K memory pages
 - `linux-uconsole-cm4-git`: kernel package for ClockworkPi uConsole CM4
 - `wpa_supplicant-raspberrypi`: `wpa_supplicant` package for Raspberry Pi / Broadcom brcmfmac environments
 - `profiles/`: example boot configuration files for Raspberry Pi CM4/CM5 and uConsole
@@ -24,6 +25,7 @@ This project is developed with reference to existing community work around uCons
   - Image for uConsole with Raspberry Pi CM5
   - Uses the `linux-uconsole-cm5-git` kernel package
   - Uses a 16K memory page kernel
+  - Users who need 4K memory pages can replace the kernel package with `linux-uconsole-cm5-4k-git`
 
 - `uconsole-arch-cm4.img`
   - Image for uConsole with Raspberry Pi CM4
@@ -78,6 +80,15 @@ pacman -U linux-uconsole-cm5-git-*.pkg.tar.zst
 mkinitcpio -p linux-uconsole-cm5-git
 ```
 
+The default CM5 kernel uses 16K memory pages. To switch a CM5 system to the optional 4K page kernel, replace the kernel package and regenerate the same CM5 initramfs preset:
+
+```bash
+pacman -S linux-uconsole-cm5-4k-git
+mkinitcpio -p linux-uconsole-cm5-git
+```
+
+`linux-uconsole-cm5-4k-git` uses the same CM5 boot slot as `linux-uconsole-cm5-git`, so `/boot/config.txt` does not need to be changed. To switch back to the default 16K kernel, reinstall `linux-uconsole-cm5-git` and run `mkinitcpio -p linux-uconsole-cm5-git` again.
+
 For a CM4 image, install the following kernel package:
 
 ```bash
@@ -85,7 +96,7 @@ pacman -U linux-uconsole-cm4-git-*.pkg.tar.zst
 mkinitcpio -p linux-uconsole-cm4-git
 ```
 
-Do not install `linux-uconsole-cm4-git` and `linux-uconsole-cm5-git` at the same time because they install the same DTB/DTBO paths.
+Do not install `linux-uconsole-cm4-git`, `linux-uconsole-cm5-git`, and `linux-uconsole-cm5-4k-git` at the same time because they install overlapping boot and DTB/DTBO paths.
 
 ## Scope
 
