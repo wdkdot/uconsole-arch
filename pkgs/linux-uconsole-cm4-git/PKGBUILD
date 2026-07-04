@@ -14,8 +14,10 @@ options=('!strip')
 # Keep them mutually exclusive unless DTB/DTBO files are split into a separate boot-files package.
 conflicts=('linux-uconsole-cm5-git')
 
+_kernel_commit="${KERNEL_COMMIT:-}"
+
 source=(
-  "kernel::git+https://github.com/ak-rex/ClockworkPi-linux.git"
+  "kernel::git+https://github.com/ak-rex/ClockworkPi-linux.git${_kernel_commit:+#commit=${_kernel_commit}}"
 )
 sha256sums=(
   'SKIP'
