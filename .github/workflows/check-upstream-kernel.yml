@@ -1,0 +1,70 @@
+name: Check upstream kernel
+
+on:
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: uconsole-arch-upstream-kernel-check
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check ClockworkPi-linux upstream
+        id: upstream
+        run: |
+          latest="$(git ls-remote https://github.com/ak-rex/ClockworkPi-linux.git HEAD | awk '{print $1}')"
+          current="$(cat .github/upstream/clockworkpi-linux.sha 2>/dev/null || true)"
+
+          if ! printf '%s\n' "$latest" | grep -Eq '^[0-9a-f]{40}$'; then
+            echo "invalid upstream SHA: $latest" >&2
+            exit 1
+          fi
+
+          echo "latest=$latest" >> "$GITHUB_OUTPUT"
+          echo "current=$current" >> "$GITHUB_OUTPUT"
+
+          if [ "$latest" != "$current" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Trigger kernel package build
+        if: steps.upstream.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run build-kernel-packages.yml \
+            -f upstream_sha="${{ steps.upstream.outputs.latest }}"
+
+      - name: Notify Gotify upstream update
+        if: steps.upstream.outputs.changed == 'true'
+        env:
+          GOTIFY_URL: ${{ secrets.GOTIFY_URL }}
+          GOTIFY_TOKEN: ${{ secrets.GOTIFY_TOKEN }}
+        run: |
+          if [ -z "${GOTIFY_URL:-}" ] || [ -z "${GOTIFY_TOKEN:-}" ]; then
+            echo "Gotify is optional; no notification target configured"
+            exit 0
+          fi
+
+          curl -fsS \
+            -H "X-Gotify-Key: ${GOTIFY_TOKEN}" \
+            -F "title=uconsole-arch upstream update detected" \
+            -F "message=ClockworkPi-linux changed:
+Previous: ${{ steps.upstream.outputs.current }}
+Latest: ${{ steps.upstream.outputs.latest }}" \
+            -F "priority=5" \
+            "${GOTIFY_URL%/}/message" || echo "failed to send Gotify notification"
