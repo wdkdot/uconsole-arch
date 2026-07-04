@@ -6,21 +6,21 @@ ClockworkPi uConsole용 Arch Linux ARM 이미지와 커널 패키지를 제공�
 
 이 저장소는 다음을 제공합니다.
 
-- 바로 플래시 가능한 CM5 이미지
+- 바로 플래시 가능한 CM4 및 CM5 이미지
 - pacman 저장소로 제공되는 CM4, CM5, CM5 4K 커널 패키지
 - ClockworkPi uConsole CM4/CM5용 부팅 프로파일
 - Raspberry Pi / Broadcom 무선 호환성 패키지
 
-> 현재 사전 빌드 이미지는 CM5용만 제공됩니다.
-> CM4 커널 패키지는 제공되지만, CM4 이미지는 아직 배포되지 않았습니다.
+> 사전 빌드 이미지는 CM4와 CM5용으로 제공됩니다.
+> CM5 4K 전용 이미지는 제공하지 않으며, 필요하면 부팅 후 `linux-uconsole-cm5-4k-git`를 설치합니다.
 
 설치된 시스템은 `pacman`으로 커널 업데이트를 받을 수 있으므로, 커널 패키지가 갱신될 때마다 새 이미지를 다시 플래시할 필요는 없습니다.
 
 ## 빠른 시작
 
-1. `uconsole-arch-cm5.img`를 다운로드합니다.
+1. Compute Module에 맞는 이미지(`uconsole-arch-cm4.img` 또는 `uconsole-arch-cm5.img`)를 다운로드합니다.
 2. microSD 카드 또는 eMMC 대상 장치에 플래시합니다.
-3. uConsole CM5를 부팅합니다.
+3. uConsole을 부팅합니다.
 4. Arch Linux ARM 기본 계정으로 로그인합니다.
 5. 기본 비밀번호를 변경합니다.
 6. `pacman`으로 시스템을 업데이트합니다.
@@ -34,7 +34,7 @@ sudo pacman -Syu
 | Image | Status | Target | Notes |
 |---|---|---|---|
 | `uconsole-arch-cm5.img` | Available | CM5 | 기본 이미지, 16K page 커널 |
-| `uconsole-arch-cm4.img` | Planned | CM4 | 커널 패키지는 제공되지만 이미지는 아직 미배포 |
+| `uconsole-arch-cm4.img` | Available | CM4 | CM4 이미지, 4K page 커널 |
 | `uconsole-arch-cm5-4k.img` | Not provided | CM5 | 필요하면 부팅 후 `linux-uconsole-cm5-4k-git` 설치 |
 
 ## 기본 로그인

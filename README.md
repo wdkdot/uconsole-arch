@@ -6,21 +6,21 @@ Ready-to-flash Arch Linux ARM images and kernel packages for the ClockworkPi uCo
 
 This repository provides:
 
-- a ready-to-flash CM5 image
+- ready-to-flash CM4 and CM5 images
 - CM4, CM5, and CM5 4K kernel packages through a pacman repository
 - boot profiles for ClockworkPi uConsole CM4/CM5
 - a Raspberry Pi / Broadcom wireless compatibility package
 
-> Currently, the prebuilt image is available for CM5 only.
-> CM4 kernel packages are available, but a CM4 image has not been published yet.
+> Prebuilt images are available for CM4 and CM5.
+> A separate CM5 4K image is not provided; install `linux-uconsole-cm5-4k-git` after boot if needed.
 
 Installed systems can receive kernel updates through `pacman`; a new image is not required for every kernel package release.
 
 ## Quick Start
 
-1. Download `uconsole-arch-cm5.img`.
+1. Download the image for your Compute Module: `uconsole-arch-cm4.img` or `uconsole-arch-cm5.img`.
 2. Flash it to a microSD card or eMMC target.
-3. Boot the uConsole CM5.
+3. Boot the uConsole.
 4. Log in with the default Arch Linux ARM credentials.
 5. Change the default passwords.
 6. Update with `pacman`.
@@ -34,7 +34,7 @@ sudo pacman -Syu
 | Image | Status | Target | Notes |
 |---|---|---|---|
 | `uconsole-arch-cm5.img` | Available | CM5 | Default image, 16K page kernel |
-| `uconsole-arch-cm4.img` | Planned | CM4 | Kernel package available, image not published yet |
+| `uconsole-arch-cm4.img` | Available | CM4 | CM4 image, 4K page kernel |
 | `uconsole-arch-cm5-4k.img` | Not provided | CM5 | Install `linux-uconsole-cm5-4k-git` after boot if needed |
 
 ## Default Login

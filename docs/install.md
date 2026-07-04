@@ -2,15 +2,15 @@
 
 ## Prebuilt Image
 
-Currently, the prebuilt image is available for CM5 only.
+Prebuilt images are available for CM4 and CM5.
 
 | Image | Status | Target | Notes |
 |---|---|---|---|
 | `uconsole-arch-cm5.img` | Available | CM5 | Default image, 16K page kernel |
-| `uconsole-arch-cm4.img` | Planned | CM4 | Kernel package available, image not published yet |
+| `uconsole-arch-cm4.img` | Available | CM4 | CM4 image, 4K page kernel |
 | `uconsole-arch-cm5-4k.img` | Not provided | CM5 | Install `linux-uconsole-cm5-4k-git` after boot if needed |
 
-Flash `uconsole-arch-cm5.img` to a microSD card or eMMC target with your preferred image writing tool, then boot the uConsole CM5.
+Flash the image for your Compute Module to a microSD card or eMMC target with your preferred image writing tool, then boot the uConsole.
 
 ## Default Login
 
