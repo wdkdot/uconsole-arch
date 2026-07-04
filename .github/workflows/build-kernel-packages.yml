@@ -63,8 +63,8 @@ jobs:
 
       - name: Notify Gotify build started
         env:
-          GOTIFY_URL: ${{ secrets.GOTIFY_URL }}
-          GOTIFY_TOKEN: ${{ secrets.GOTIFY_TOKEN }}
+          GOTIFY_URL: ${{ secrets['GOTIFY_URL'] }}
+          GOTIFY_TOKEN: ${{ secrets['GOTIFY_TOKEN'] }}
         run: |
           if [ -z "${GOTIFY_URL:-}" ] || [ -z "${GOTIFY_TOKEN:-}" ]; then
             echo "Gotify is optional; no notification target configured"
@@ -155,8 +155,8 @@ jobs:
       - name: Notify Gotify build result
         if: always()
         env:
-          GOTIFY_URL: ${{ secrets.GOTIFY_URL }}
-          GOTIFY_TOKEN: ${{ secrets.GOTIFY_TOKEN }}
+          GOTIFY_URL: ${{ secrets['GOTIFY_URL'] }}
+          GOTIFY_TOKEN: ${{ secrets['GOTIFY_TOKEN'] }}
           JOB_STATUS: ${{ job.status }}
         run: |
           if [ -z "${GOTIFY_URL:-}" ] || [ -z "${GOTIFY_TOKEN:-}" ]; then
@@ -172,11 +172,13 @@ jobs:
             title="uconsole-arch kernel build failed"
           fi
 
+          message="Status: ${JOB_STATUS}
+          Commit: ${{ steps.upstream.outputs.sha }}
+          Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
           curl -fsS \
             -H "X-Gotify-Key: ${GOTIFY_TOKEN}" \
             -F "title=${title}" \
-            -F "message=Status: ${JOB_STATUS}
-Commit: ${{ steps.upstream.outputs.sha }}
-Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            -F "message=${message}" \
             -F "priority=${priority}" \
             "${GOTIFY_URL%/}/message" || echo "failed to send Gotify notification"
