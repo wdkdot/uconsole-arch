@@ -2,123 +2,118 @@
 
 [English](README.md) | [한국어](README.ko.md)
 
-`uconsole-arch`는 ClockworkPi uConsole에서 Arch Linux ARM을 구동하기 위한 기본 구성과 패키지 빌드 파일을 정리한 저장소입니다.
+ClockworkPi uConsole용 Arch Linux ARM 이미지와 커널 패키지를 제공하는 저장소입니다.
 
-커널, 부팅 설정, Raspberry Pi / Broadcom 무선 호환성 패키지를 Arch Linux ARM 환경에서 재현 가능하게 관리하는 데 초점을 둡니다.
+이 저장소는 다음을 제공합니다.
 
-개발 과정에서는 uConsole 커뮤니티의 기존 작업을 참고하고 있으며, PeterCxy가 공유한 패키징 및 통합 아이디어, 그리고 Rex를 비롯한 여러 기여자의 하드웨어 지원 작업에서 많은 도움을 받고 있습니다.
+- 바로 플래시 가능한 CM5 이미지
+- pacman 저장소로 제공되는 CM4, CM5, CM5 4K 커널 패키지
+- ClockworkPi uConsole CM4/CM5용 부팅 프로파일
+- Raspberry Pi / Broadcom 무선 호환성 패키지
 
-## 내용
+> 현재 사전 빌드 이미지는 CM5용만 제공됩니다.
+> CM4 커널 패키지는 제공되지만, CM4 이미지는 아직 배포되지 않았습니다.
 
-- `linux-uconsole-cm5-git`: ClockworkPi uConsole CM5용 커널 패키지
-- `linux-uconsole-cm5-4k-git`: 4K 메모리 페이지를 사용하는 선택형 CM5 커널 패키지
-- `linux-uconsole-cm4-git`: ClockworkPi uConsole CM4용 커널 패키지
-- `wpa_supplicant-raspberrypi`: Raspberry Pi / Broadcom brcmfmac 환경을 위한 `wpa_supplicant` 패키지
-- `profiles/`: Raspberry Pi CM4/CM5와 uConsole용 부팅 설정 예시
-- `docs/`: 설치, 부팅, 패키지 관련 문서 예정
+설치된 시스템은 `pacman`으로 커널 업데이트를 받을 수 있으므로, 커널 패키지가 갱신될 때마다 새 이미지를 다시 플래시할 필요는 없습니다.
 
-## 설치
+## 빠른 시작
 
-### 사전 빌드 이미지
-
-- `uconsole-arch-cm5.img`
-  - Raspberry Pi CM5를 사용하는 uConsole용 이미지
-  - `linux-uconsole-cm5-git` 커널 패키지 사용
-  - 16K 메모리 페이지 커널 사용
-  - 4K 메모리 페이지가 필요한 사용자는 `linux-uconsole-cm5-4k-git` 커널 패키지로 교체 가능
-
-- `uconsole-arch-cm4.img`
-  - Raspberry Pi CM4를 사용하는 uConsole용 이미지
-  - `linux-uconsole-cm4-git` 커널 패키지 사용
-  - 4K 메모리 페이지 커널 사용
-
-일반 사용자는 자신의 Compute Module 모델에 맞는 이미지를 선택하면 됩니다.
-
-### 직접 구성하는 경우
-
-Arch Linux ARM rootfs를 SD 카드 또는 이미지의 root 파티션에 풀어 둔 뒤, 해당 rootfs에 chroot하여 커널 패키지 설치와 initramfs 생성을 진행합니다.
-
-root 파일시스템 파티션의 라벨은 `alarm-root`로 설정해야 합니다. 새 ext4 파일시스템을 만드는 경우에는 다음과 같이 라벨을 함께 지정합니다.
+1. `uconsole-arch-cm5.img`를 다운로드합니다.
+2. microSD 카드 또는 eMMC 대상 장치에 플래시합니다.
+3. uConsole CM5를 부팅합니다.
+4. Arch Linux ARM 기본 계정으로 로그인합니다.
+5. 기본 비밀번호를 변경합니다.
+6. `pacman`으로 시스템을 업데이트합니다.
 
 ```bash
-mkfs.ext4 -L alarm-root /dev/ROOT_PARTITION
+sudo pacman -Syu
 ```
 
-이미 ext4 파일시스템을 만든 뒤 라벨만 바꾸는 경우에는 다음 명령을 사용할 수 있습니다.
+## 제공 이미지
+
+| Image | Status | Target | Notes |
+|---|---|---|---|
+| `uconsole-arch-cm5.img` | Available | CM5 | 기본 이미지, 16K page 커널 |
+| `uconsole-arch-cm4.img` | Planned | CM4 | 커널 패키지는 제공되지만 이미지는 아직 미배포 |
+| `uconsole-arch-cm5-4k.img` | Not provided | CM5 | 필요하면 부팅 후 `linux-uconsole-cm5-4k-git` 설치 |
+
+## 기본 로그인
+
+현재 이미지는 Arch Linux ARM의 기본 계정 정보를 그대로 유지합니다.
+
+- User: `alarm`
+- Password: `alarm`
+- Root password: `root`
+
+첫 부팅 후 두 비밀번호를 모두 변경하세요.
 
 ```bash
-e2label /dev/ROOT_PARTITION alarm-root
+passwd
+sudo passwd root
 ```
 
-예를 들어 부트 파티션을 `/mnt/boot`, root 파티션을 `/mnt/root`에 마운트한다면 다음과 같은 흐름으로 작업합니다.
+## 패키지 저장소
 
-```bash
-mount /dev/ROOT_PARTITION /mnt/root
-mount /dev/BOOT_PARTITION /mnt/boot
+사전 빌드된 이미지에는 이 저장소가 `/etc/pacman.conf`에 이미 추가되어 있으므로, 이미지 사용자는 바로 `pacman`으로 업데이트할 수 있습니다.
+
+수동 설치 환경이나 기존 Arch Linux ARM 시스템에서는 `/etc/pacman.conf`에 저장소를 추가합니다.
+
+```ini
+[uconsole-arch]
+SigLevel = Optional TrustAll
+Server = https://repo.wdk.kr/uconsole-arch/$arch
 ```
 
-Arch Linux ARM rootfs를 `/mnt/root`에 풀어 둔 뒤, 부트 파티션에는 저장소의 프로파일 파일을 복사합니다.
+이후 `pacman`으로 패키지를 설치하거나 업데이트할 수 있습니다.
 
-```bash
-cp profiles/config.txt /mnt/boot/config.txt
-cp profiles/cmdline.txt /mnt/boot/cmdline.txt
-```
+## 커널 패키지
 
-`profiles/config.txt`는 CM4와 CM5를 모두 고려한 공용 설정 파일입니다. 실제 부팅 시 Compute Module 모델에 따라 알맞은 커널과 오버레이가 선택됩니다.
+커널 패키지는 Rex가 관리하는 uConsole 지원 Raspberry Pi 커널을 기반으로 빌드됩니다: <https://github.com/ak-rex/ClockworkPi-linux>
 
-rootfs의 `/boot`가 부트 파티션을 가리키도록 바인드 마운트한 뒤 chroot에 진입합니다.
-
-```bash
-mount --bind /mnt/boot /mnt/root/boot
-arch-chroot /mnt/root
-```
-
-CM5 이미지에는 다음 커널 패키지를 설치합니다.
-
-```bash
-pacman -U linux-uconsole-cm5-git-*.pkg.tar.zst
-mkinitcpio -p linux-uconsole-cm5-git
-```
-
-기본 CM5 커널은 16K 메모리 페이지를 사용합니다. CM5 시스템을 선택형 4K 페이지 커널로 바꾸려면 커널 패키지를 교체합니다.
-
-```bash
-pacman -S linux-uconsole-cm5-4k-git
-```
-
-`linux-uconsole-cm5-4k-git`는 `linux-uconsole-cm5-git`와 같은 CM5 부팅 슬롯을 사용하므로 `/boot/config.txt`는 수정하지 않아도 됩니다. 패키지는 `/usr/lib/modules/<kernelrelease>/vmlinuz`를 설치하므로 표준 `mkinitcpio` pacman hook이 initramfs를 자동으로 다시 생성합니다. 기본 16K 커널로 돌아가려면 `linux-uconsole-cm5-git`를 다시 설치합니다.
-
-CM4 이미지에는 다음 커널 패키지를 설치합니다.
-
-```bash
-pacman -U linux-uconsole-cm4-git-*.pkg.tar.zst
-mkinitcpio -p linux-uconsole-cm4-git
-```
+| Package | Target | Page size | Notes |
+|---|---|---|---|
+| `linux-uconsole-cm5-git` | CM5 | 16K | 기본 CM5 커널 |
+| `linux-uconsole-cm5-4k-git` | CM5 | 4K | 호환성용 커널 |
+| `linux-uconsole-cm4-git` | CM4 | 4K | CM4 커널 |
 
 `linux-uconsole-cm4-git`, `linux-uconsole-cm5-git`, `linux-uconsole-cm5-4k-git`는 부팅 파일과 DTB/DTBO 경로가 겹치므로 동시에 설치하지 않습니다.
 
-## 범위
+부팅된 CM5 시스템을 4K page 커널로 전환하려면 다음 패키지를 설치합니다.
 
-이 저장소는 uConsole에서 Arch Linux ARM을 부팅하는 데 필요한 기본 시스템 계층에 초점을 둡니다.
+```bash
+sudo pacman -S linux-uconsole-cm5-4k-git
+```
 
-- 커널 패키징
-- 부팅 설정 예시
-- 디바이스 트리와 오버레이 처리
-- 네트워크 호환성 패키지
+CM5 4K 패키지는 기본 CM5 커널과 같은 부팅 슬롯을 사용하므로 `/boot/config.txt`는 수정하지 않아도 됩니다.
 
-데스크톱 환경, 윈도우 매니저, 개인 UI 프리셋은 포함하지 않습니다.
+## 무선 패키지
+
+`wpa_supplicant-raspberrypi`는 Raspberry Pi / Broadcom brcmfmac Wi-Fi 환경을 위한 패치가 적용된 `wpa_supplicant` 패키지입니다. 이미지 빌더는 이 패키지가 있으면 우선 설치하고, 저장소에 없으면 Arch Linux ARM 기본 `wpa_supplicant` 패키지로 대체합니다.
+
+## 빌드와 배포 방식
+
+- 커널 패키지는 self-hosted GitHub Actions runner에서 자동 빌드됩니다.
+- 커널 빌드가 성공하면 pacman 저장소가 다시 생성되고 미러 서버로 배포됩니다.
+- `wpa_supplicant-raspberrypi`는 교차 컴파일이 아직 번거로워 uConsole에서 수동 빌드합니다.
+- 부팅 가능한 이미지는 `scripts/build-image.sh`로 수동 빌드합니다.
+- 설치된 시스템은 `pacman`으로 업데이트할 수 있으므로 커널 업데이트마다 새 이미지를 만들지는 않습니다.
+
+## 수동 이미지 빌드
+
+수동 이미지 빌드 방법은 [docs/build-image.md](docs/build-image.md)에 정리되어 있습니다.
 
 ## 저장소 구조
 
 ```text
-docs/       문서 예정
+docs/       설치, 이미지 빌드, 패키지, 부팅 관련 문서
 pkgs/       PKGBUILD와 관련 패키지 파일
-profiles/   부팅 설정 예시 파일
+profiles/   이미지에 복사되는 부팅 설정 파일
+scripts/    커널 패키지와 이미지 빌드 스크립트
 ```
 
-## 참고
+## Credits
 
-이 저장소의 파일은 개인 데스크톱 구성보다 장치 구동에 필요한 기본 구성과 패키징 정보를 우선합니다. 사용 환경별 설정은 이 기반 위에서 별도로 추가하는 것을 권장합니다.
+개발 과정에서는 uConsole 커뮤니티의 기존 작업을 참고하고 있으며, PeterCxy가 공유한 패키징 및 통합 아이디어, 그리고 Rex를 비롯한 여러 기여자의 하드웨어 지원 작업에서 많은 도움을 받고 있습니다.
 
 ## 라이선스
 

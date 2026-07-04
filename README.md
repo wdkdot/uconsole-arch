@@ -2,123 +2,118 @@
 
 [English](README.md) | [한국어](README.ko.md)
 
-`uconsole-arch` collects the base configuration and package build files for running Arch Linux ARM on the ClockworkPi uConsole.
+Ready-to-flash Arch Linux ARM images and kernel packages for the ClockworkPi uConsole.
 
-It focuses on managing the kernel, boot configuration, and Raspberry Pi / Broadcom wireless compatibility package in a reproducible Arch Linux ARM environment.
+This repository provides:
 
-This project is developed with reference to existing community work around uConsole, including packaging and integration ideas shared by PeterCxy and hardware enablement work from Rex and other contributors.
+- a ready-to-flash CM5 image
+- CM4, CM5, and CM5 4K kernel packages through a pacman repository
+- boot profiles for ClockworkPi uConsole CM4/CM5
+- a Raspberry Pi / Broadcom wireless compatibility package
 
-## Contents
+> Currently, the prebuilt image is available for CM5 only.
+> CM4 kernel packages are available, but a CM4 image has not been published yet.
 
-- `linux-uconsole-cm5-git`: kernel package for ClockworkPi uConsole CM5
-- `linux-uconsole-cm5-4k-git`: optional CM5 kernel package with 4K memory pages
-- `linux-uconsole-cm4-git`: kernel package for ClockworkPi uConsole CM4
-- `wpa_supplicant-raspberrypi`: `wpa_supplicant` package for Raspberry Pi / Broadcom brcmfmac environments
-- `profiles/`: example boot configuration files for Raspberry Pi CM4/CM5 and uConsole
-- `docs/`: planned documentation for installation, boot, and packages
+Installed systems can receive kernel updates through `pacman`; a new image is not required for every kernel package release.
 
-## Installation
+## Quick Start
 
-### Prebuilt Images
-
-- `uconsole-arch-cm5.img`
-  - Image for uConsole with Raspberry Pi CM5
-  - Uses the `linux-uconsole-cm5-git` kernel package
-  - Uses a 16K memory page kernel
-  - Users who need 4K memory pages can replace the kernel package with `linux-uconsole-cm5-4k-git`
-
-- `uconsole-arch-cm4.img`
-  - Image for uConsole with Raspberry Pi CM4
-  - Uses the `linux-uconsole-cm4-git` kernel package
-  - Uses a 4K memory page kernel
-
-Most users should choose the image that matches their Compute Module model.
-
-### Manual Setup
-
-Extract the Arch Linux ARM rootfs to the root partition of an SD card or image, then chroot into that rootfs to install the kernel package and generate the initramfs.
-
-The root filesystem partition label must be set to `alarm-root`. When creating a new ext4 filesystem, set the label at the same time:
+1. Download `uconsole-arch-cm5.img`.
+2. Flash it to a microSD card or eMMC target.
+3. Boot the uConsole CM5.
+4. Log in with the default Arch Linux ARM credentials.
+5. Change the default passwords.
+6. Update with `pacman`.
 
 ```bash
-mkfs.ext4 -L alarm-root /dev/ROOT_PARTITION
+sudo pacman -Syu
 ```
 
-If the ext4 filesystem already exists and only the label needs to be changed, use:
+## Available Images
+
+| Image | Status | Target | Notes |
+|---|---|---|---|
+| `uconsole-arch-cm5.img` | Available | CM5 | Default image, 16K page kernel |
+| `uconsole-arch-cm4.img` | Planned | CM4 | Kernel package available, image not published yet |
+| `uconsole-arch-cm5-4k.img` | Not provided | CM5 | Install `linux-uconsole-cm5-4k-git` after boot if needed |
+
+## Default Login
+
+This image currently keeps the default Arch Linux ARM credentials.
+
+- User: `alarm`
+- Password: `alarm`
+- Root password: `root`
+
+Change both passwords after first boot:
 
 ```bash
-e2label /dev/ROOT_PARTITION alarm-root
+passwd
+sudo passwd root
 ```
 
-For example, if the boot partition is mounted at `/mnt/boot` and the root partition is mounted at `/mnt/root`, the flow is:
+## Package Repository
+
+The prebuilt image already includes this repository in `/etc/pacman.conf`, so image users can update directly with `pacman`.
+
+For a manual installation or an existing Arch Linux ARM system, add the repository to `/etc/pacman.conf`:
+
+```ini
+[uconsole-arch]
+SigLevel = Optional TrustAll
+Server = https://repo.wdk.kr/uconsole-arch/$arch
+```
+
+Then install or update packages with `pacman`.
+
+## Kernel Packages
+
+Kernel packages are built from the uConsole-enabled Raspberry Pi kernel maintained by Rex: <https://github.com/ak-rex/ClockworkPi-linux>
+
+| Package | Target | Page size | Notes |
+|---|---|---|---|
+| `linux-uconsole-cm5-git` | CM5 | 16K | Default CM5 kernel |
+| `linux-uconsole-cm5-4k-git` | CM5 | 4K | Compatibility kernel |
+| `linux-uconsole-cm4-git` | CM4 | 4K | CM4 kernel |
+
+Do not install `linux-uconsole-cm4-git`, `linux-uconsole-cm5-git`, and `linux-uconsole-cm5-4k-git` at the same time. They install overlapping boot, DTB, and DTBO paths.
+
+To switch a booted CM5 system to the 4K page kernel:
 
 ```bash
-mount /dev/ROOT_PARTITION /mnt/root
-mount /dev/BOOT_PARTITION /mnt/boot
+sudo pacman -S linux-uconsole-cm5-4k-git
 ```
 
-After extracting the Arch Linux ARM rootfs to `/mnt/root`, copy the profile files from this repository to the boot partition:
+The CM5 4K package uses the same CM5 boot slot as the default CM5 kernel, so `/boot/config.txt` does not need to be changed.
 
-```bash
-cp profiles/config.txt /mnt/boot/config.txt
-cp profiles/cmdline.txt /mnt/boot/cmdline.txt
-```
+## Wireless Package
 
-`profiles/config.txt` is a shared configuration file for both CM4 and CM5. At boot time, the appropriate kernel and overlays are selected according to the Compute Module model.
+`wpa_supplicant-raspberrypi` is a patched `wpa_supplicant` package for Raspberry Pi / Broadcom brcmfmac Wi-Fi environments. The image builder installs it when available and falls back to the upstream Arch Linux ARM `wpa_supplicant` package if needed.
 
-Bind-mount the boot partition so that the rootfs `/boot` points to it, then enter the chroot:
+## Build and Release Model
 
-```bash
-mount --bind /mnt/boot /mnt/root/boot
-arch-chroot /mnt/root
-```
+- Kernel packages are built automatically with a self-hosted GitHub Actions runner.
+- The pacman repository is regenerated and published to the mirror server after successful kernel builds.
+- `wpa_supplicant-raspberrypi` is built manually on the uConsole because cross-compiling it is currently inconvenient.
+- Bootable images are built manually with `scripts/build-image.sh`.
+- New images are not produced for every kernel update because installed systems can update through `pacman`.
 
-For a CM5 image, install the following kernel package:
+## Manual Image Build
 
-```bash
-pacman -U linux-uconsole-cm5-git-*.pkg.tar.zst
-mkinitcpio -p linux-uconsole-cm5-git
-```
-
-The default CM5 kernel uses 16K memory pages. To switch a CM5 system to the optional 4K page kernel, replace the kernel package:
-
-```bash
-pacman -S linux-uconsole-cm5-4k-git
-```
-
-`linux-uconsole-cm5-4k-git` uses the same CM5 boot slot as `linux-uconsole-cm5-git`, so `/boot/config.txt` does not need to be changed. The package installs `/usr/lib/modules/<kernelrelease>/vmlinuz`, which lets the standard `mkinitcpio` pacman hook regenerate the initramfs automatically. To switch back to the default 16K kernel, reinstall `linux-uconsole-cm5-git`.
-
-For a CM4 image, install the following kernel package:
-
-```bash
-pacman -U linux-uconsole-cm4-git-*.pkg.tar.zst
-mkinitcpio -p linux-uconsole-cm4-git
-```
-
-Do not install `linux-uconsole-cm4-git`, `linux-uconsole-cm5-git`, and `linux-uconsole-cm5-4k-git` at the same time because they install overlapping boot and DTB/DTBO paths.
-
-## Scope
-
-This repository focuses on the base system layer required to boot Arch Linux ARM on the uConsole.
-
-- kernel packaging
-- boot configuration examples
-- device tree and overlay handling
-- network compatibility packages
-
-Desktop environments, window managers, and personal UI presets are not included.
+Manual image build instructions are documented in [docs/build-image.md](docs/build-image.md).
 
 ## Repository Structure
 
 ```text
-docs/       Planned documentation
+docs/       Installation, image build, package, and boot notes
 pkgs/       PKGBUILDs and related package files
-profiles/   Example boot configuration files
+profiles/   Boot configuration files copied into images
+scripts/    Kernel package and image build scripts
 ```
 
-## Notes
+## Credits
 
-The files in this repository prioritize device bring-up and packaging information over personal desktop configuration. Environment-specific settings are intended to be added separately on top of this base.
+This project is developed with reference to existing community work around uConsole, including packaging and integration ideas shared by PeterCxy and hardware enablement work from Rex and other contributors.
 
 ## License
 
