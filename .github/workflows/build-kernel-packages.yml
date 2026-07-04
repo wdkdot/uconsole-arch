@@ -12,6 +12,14 @@ on:
       - ".github/workflows/build-kernel-packages.yml"
 
   workflow_dispatch:
+    inputs:
+      upstream_sha:
+        description: "ClockworkPi-linux commit SHA to build"
+        required: false
+        type: string
+
+permissions:
+  contents: write
 
 concurrency:
   group: uconsole-arch-kernel-package-build
@@ -25,6 +33,24 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve upstream kernel commit
+        id: upstream
+        run: |
+          if [ -n "${{ inputs.upstream_sha }}" ]; then
+            sha="${{ inputs.upstream_sha }}"
+          else
+            sha="$(git ls-remote https://github.com/ak-rex/ClockworkPi-linux.git HEAD | awk '{print $1}')"
+          fi
+
+          if ! printf '%s\n' "$sha" | grep -Eq '^[0-9a-f]{40}$'; then
+            echo "invalid upstream SHA: $sha" >&2
+            exit 1
+          fi
+
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
 
       - name: Show build environment
         run: |
@@ -33,8 +59,28 @@ jobs:
           df -h
           aarch64-linux-gnu-gcc --version
           repo-add --version
+          echo "ClockworkPi-linux commit: ${{ steps.upstream.outputs.sha }}"
+
+      - name: Notify Gotify build started
+        env:
+          GOTIFY_URL: ${{ secrets.GOTIFY_URL }}
+          GOTIFY_TOKEN: ${{ secrets.GOTIFY_TOKEN }}
+        run: |
+          if [ -z "${GOTIFY_URL:-}" ] || [ -z "${GOTIFY_TOKEN:-}" ]; then
+            echo "Gotify is optional; no notification target configured"
+            exit 0
+          fi
+
+          curl -fsS \
+            -H "X-Gotify-Key: ${GOTIFY_TOKEN}" \
+            -F "title=uconsole-arch kernel build started" \
+            -F "message=Building ClockworkPi-linux ${{ steps.upstream.outputs.sha }}" \
+            -F "priority=4" \
+            "${GOTIFY_URL%/}/message" || echo "failed to send Gotify notification"
 
       - name: Build kernel packages
+        env:
+          KERNEL_COMMIT: ${{ steps.upstream.outputs.sha }}
         run: |
           ./scripts/build-kernel-packages.sh
 
@@ -88,3 +134,49 @@ jobs:
         run: |
           rsync -avh --delete --omit-link-times output/repo/aarch64/ \
             arch-mirror:/srv/uconsole-arch/aarch64/
+
+      - name: Record built upstream commit
+        if: github.ref == 'refs/heads/main'
+        run: |
+          mkdir -p .github/upstream
+          printf '%s\n' "${{ steps.upstream.outputs.sha }}" > .github/upstream/clockworkpi-linux.sha
+
+          if git diff --quiet -- .github/upstream/clockworkpi-linux.sha; then
+            echo "upstream commit state is already current"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/upstream/clockworkpi-linux.sha
+          git commit -m "Record built ClockworkPi-linux commit"
+          git push
+
+      - name: Notify Gotify build result
+        if: always()
+        env:
+          GOTIFY_URL: ${{ secrets.GOTIFY_URL }}
+          GOTIFY_TOKEN: ${{ secrets.GOTIFY_TOKEN }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          if [ -z "${GOTIFY_URL:-}" ] || [ -z "${GOTIFY_TOKEN:-}" ]; then
+            echo "Gotify is optional; no notification target configured"
+            exit 0
+          fi
+
+          if [ "$JOB_STATUS" = "success" ]; then
+            priority=5
+            title="uconsole-arch kernel build succeeded"
+          else
+            priority=8
+            title="uconsole-arch kernel build failed"
+          fi
+
+          curl -fsS \
+            -H "X-Gotify-Key: ${GOTIFY_TOKEN}" \
+            -F "title=${title}" \
+            -F "message=Status: ${JOB_STATUS}
+Commit: ${{ steps.upstream.outputs.sha }}
+Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            -F "priority=${priority}" \
+            "${GOTIFY_URL%/}/message" || echo "failed to send Gotify notification"
