@@ -19,6 +19,7 @@ ClockworkPi uConsole용 Arch Linux ARM 이미지와 커널 패키지를 제공�
 ## 빠른 시작
 
 1. Compute Module에 맞는 이미지(`uconsole-arch-cm4.img` 또는 `uconsole-arch-cm5.img`)를 다운로드합니다.
+   - 최신 릴리즈: [https://github.com/wdkdot/uconsole-arch/releases/latest](https://github.com/wdkdot/uconsole-arch/releases/latest)
 2. microSD 카드 또는 eMMC 대상 장치에 플래시합니다.
 3. uConsole을 부팅합니다.
 4. Arch Linux ARM 기본 계정으로 로그인합니다.

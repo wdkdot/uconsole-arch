@@ -19,6 +19,7 @@ Installed systems can receive kernel updates through `pacman`; a new image is no
 ## Quick Start
 
 1. Download the image for your Compute Module: `uconsole-arch-cm4.img` or `uconsole-arch-cm5.img`.
+   - Latest release: [https://github.com/wdkdot/uconsole-arch/releases/latest](https://github.com/wdkdot/uconsole-arch/releases/latest)
 2. Flash it to a microSD card or eMMC target.
 3. Boot the uConsole.
 4. Log in with the default Arch Linux ARM credentials.
