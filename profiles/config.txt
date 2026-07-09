@@ -59,4 +59,4 @@ gpio=10=ip,np
 
 # Speaker amplifier
 # Uncomment the following line to enable the speaker amplifier by default at boot.
-# gpio=11=op,dh
+gpio=11=op,dh
